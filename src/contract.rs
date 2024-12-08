@@ -204,7 +204,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
 fn query_pool(deps: Deps,pool_key:String)->StdResult<PoolResponse>{
     let config= POOLS.load(deps.storage,pool_key.clone())?;
     let assets= PAIR_BALANCES.load(deps.storage,pool_key.clone())?;
-    let total_share = query_supply(&deps.querier, &config.pair_info.liquidity_token)?;
+    let total_share = query_supply(&deps.querier, config.pair_info.liquidity_token)?;
     let resp = PoolResponse {
         assets,
         total_share,

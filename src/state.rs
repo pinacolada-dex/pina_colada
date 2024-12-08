@@ -105,7 +105,7 @@ pub fn increment_pair_balances(deps: &mut DepsMut, key: String, amounts: Vec<Uin
 pub fn decrease_pair_balances(deps: &mut DepsMut, key: String, amounts: Vec<Uint128>) {
     let mut curr = PAIR_BALANCES.load(deps.storage, key.clone()).unwrap();
     for (i, v) in amounts.into_iter().enumerate() {
-        println!("{} {} {}", curr[i], v, "amounts");
+        println!("{} {} amounts", curr[i], v);
         curr[i].amount -= v;
     }
     let _ = PAIR_BALANCES.save(deps.storage, key, &curr);

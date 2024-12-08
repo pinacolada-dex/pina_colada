@@ -171,7 +171,7 @@ pub fn execute_provide_liquidity(
     let precisions = Precisions::new(deps.storage)?;
 
     //println!("QUERY POOLS");
-    let mut pools = query_pools(&deps, &config, &precisions)?;
+    let mut pools = query_pools(deps, &config, &precisions)?;
 
     if pools[0].info.equal(&assets[1].info) {
         assets.swap(0, 1);
@@ -283,15 +283,11 @@ pub fn execute_provide_liquidity(
     let share_ratio = share / (total_share + share);
     //println!("share ratio");
     //println!("{:?}", share_ratio);
-    let balanced_share = vec![
-        new_xp[0] * share_ratio,
-        new_xp[1] * share_ratio / config.pool_state.price_state.price_scale,
-    ];
+    let balanced_share = [new_xp[0] * share_ratio,
+        new_xp[1] * share_ratio / config.pool_state.price_state.price_scale];
 
-    let assets_diff = vec![
-        deposits[0].diff(balanced_share[0]),
-        deposits[1].diff(balanced_share[1]),
-    ];
+    let assets_diff = [deposits[0].diff(balanced_share[0]),
+        deposits[1].diff(balanced_share[1])];
 
     let mut slippage = Decimal256::zero();
 
@@ -376,7 +372,7 @@ pub fn execute_withdraw_liquidity(
     }
 
     let precisions = Precisions::new(deps.storage)?;
-    let pools = query_pools(&deps, &config, &precisions)?;
+    let pools = query_pools(deps, &config, &precisions)?;
 
     decrease_pair_balances(deps, pool.clone(), [amount, amount].to_vec());
 
@@ -474,7 +470,7 @@ pub fn execute_create_pair(
     check_asset_infos(deps.api, &asset_infos)?;
 
     let params: ConcentratedPoolParams =
-        from_json(&init_params.ok_or(ContractError::InitParamsNotFound {})?)?;
+        from_json(init_params.ok_or(ContractError::InitParamsNotFound {})?)?;
 
     if params.price_scale.is_zero() {
         return Err(StdError::generic_err("Initial price scale can not be zero").into());
@@ -689,7 +685,7 @@ fn swap_internal(
     let mut config = POOLS.load(deps.storage, pool_key.clone())?;
     increment_asset_balance(deps, pool_key.clone(), offer_ind, offer_asset.amount);
 
-    let mut pools = query_pools(&deps, &config, &precisions)?;
+    let mut pools = query_pools(deps, &config, &precisions)?;
 
     let ask_asset_prec = precisions.get_precision(&pools[ask_ind].info)?;
     //println!("{},{}", pools[offer_ind].amount, "SUBTRACTION");
@@ -705,7 +701,7 @@ fn swap_internal(
         offer_asset_dec.amount,
         ask_ind,
         &config,
-        &env,
+        env,
         Decimal256::zero(),
         Decimal256::zero(),
     )?;
@@ -738,7 +734,7 @@ fn swap_internal(
         xs[1] *= config.pool_state.price_state.price_scale;
         config
             .pool_state
-            .update_price(&config.pool_params, &env, total_share, &xs, last_price)?;
+            .update_price(&config.pool_params, env, total_share, &xs, last_price)?;
     }
 
     //let receiver = to.unwrap_or_else(|| sender.clone());
@@ -781,7 +777,7 @@ fn swap_internal(
         } else {
             (return_amount, offer_asset.amount)
         };
-        PrecommitObservation::save(deps.storage, &env, base_amount, quote_amount)?;
+        PrecommitObservation::save(deps.storage, env, base_amount, quote_amount)?;
     }
 
     POOLS.save(deps.storage, pool_key, &config)?;
