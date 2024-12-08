@@ -58,6 +58,8 @@ anyhow = "1.0"
 bnum = "0.11.0"
 
 [dev-dependencies]
+schemars = "0.8"
+serde = { version = "1.0", default-features = false, features = ["derive"] }
 cw-multi-test = "0.15"
 cw20 = "0.15"
 anyhow = "1.0"

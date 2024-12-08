@@ -5,13 +5,15 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use archid_registry::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use astrpt::msg::{ExecuteMsg, QueryMsg};
+use astroport::router::{InstantiateMsg, MigrateMsg,};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Schema {
     instantiate: InstantiateMsg,
     execute: ExecuteMsg,
     query: QueryMsg,
+    migrate: MigrateMsg,
 }
 
 fn main() {

@@ -2,10 +2,10 @@
 
 use std::error::Error;
 use std::fmt::Display;
-use std::ops::Add;
+
 use std::str::FromStr;
 
-use crate::error::ContractError;
+
 use crate::factory_helper::{instantiate_token, mint, mint_native, FactoryHelper};
 use crate::msg::Cw20HookMsg;
 use crate::msg::ExecuteMsg;
@@ -16,13 +16,13 @@ use astroport::asset::{
 use astroport::factory::PairType;
 use astroport::pair::PoolResponse;
 use astroport::pair_concentrated::{
-    ConcentratedPoolConfig, ConcentratedPoolParams, ConcentratedPoolUpdateParams,
+    ConcentratedPoolParams,
 };
 use crate::msg::QueryMsg;
-use astroport::router::{InstantiateMsg, MigrateMsg};
-use astroport::token;
-use cosmwasm_std::{coins, from_binary, to_binary, Addr, Coin, Decimal, Empty, StdError, Uint128};
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
+use astroport::router::{InstantiateMsg};
+
+use cosmwasm_std::{to_json_binary, Addr, Coin, Decimal, Empty, Uint128};
+use cw20::{Cw20ExecuteMsg};
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 pub static DENOM: &str = "aarch";
 pub fn common_pcl_params() -> ConcentratedPoolParams {
@@ -96,12 +96,12 @@ fn pool_manager_works() {
         price_scale: Decimal::from_ratio(1u8, 2u8),
         ..common_pcl_params()
     };
-    for (a, b, typ, liq) in [
+    for (a, b, _typ, liq) in [
         (&token_x, &token_y, PairType::Xyk {}, 800_000_000000),
         (&token_y, &token_z, PairType::Stable {}, 900_000_000000),
     ] {
-        let params = Some(to_binary(&params).unwrap());
-        let pair = helper
+        let params = Some(to_json_binary(&params).unwrap());
+        let _pair = helper
             .create_pair(
                 &mut app,
                 &owner,
@@ -157,10 +157,10 @@ fn pool_manager_works() {
     app.execute_contract(owner.clone(), pool_manager.clone(), &provide_msg2, &[])
         .unwrap();
 
-    let swap_msg = Cw20ExecuteMsg::Send {
+    let _swap_msg = Cw20ExecuteMsg::Send {
         contract: pool_manager.clone().to_string(),
         amount: Uint128::from(10000u128),
-        msg: to_binary(&Cw20HookMsg::ExecuteSwapOperations {
+        msg: to_json_binary(&Cw20HookMsg::ExecuteSwapOperations {
             operations: vec![
                 SwapOperation {
                     offer_asset_info: AssetInfo::Token {
@@ -197,14 +197,14 @@ fn pool_manager_works() {
                 info: AssetInfo::Token {
                     contract_addr: token_x.clone(),
                 },
-                /// A token amount
+                // A token amount
                 amount: Uint128::from(1000000_u128),
             },
             Asset {
                 info: AssetInfo::Token {
                     contract_addr: token_y.clone(),
                 },
-                /// A token amount
+                // A token amount
                 amount: Uint128::from(1000000_u128),
             },
         ]
@@ -213,7 +213,7 @@ fn pool_manager_works() {
     let withdraw_msg = Cw20ExecuteMsg::Send {
         contract: pool_manager.clone().to_string(),
         amount: Uint128::from(1000000_u128),
-        msg: to_binary(&withdraw_liq_msg).unwrap(),
+        msg: to_json_binary(&withdraw_liq_msg).unwrap(),
     };
     app.execute_contract(
         owner.clone(),
@@ -257,12 +257,12 @@ fn test_native_to_token_swap() {
         price_scale: Decimal::from_ratio(1u8, 2u8),
         ..common_pcl_params()
     };
-    for (a, b, typ, liq) in [
+    for (a, b, _typ, liq) in [
         (&token_x, &token_y, PairType::Xyk {}, 800_000_00000000),
         (&token_y, &token_z, PairType::Stable {}, 900_000_00000000),
     ] {
-        let params = Some(to_binary(&params).unwrap());
-        let pair = helper
+        let params = Some(to_json_binary(&params).unwrap());
+        let _pair = helper
             .create_pair(
                 &mut app,
                 &owner,
@@ -285,8 +285,8 @@ fn test_native_to_token_swap() {
     app.execute_contract(owner.clone(), token_x.clone(), &msg, &[])
         .unwrap();
     let arch = n * 1000000000000000;
-    let r = mint_native(&mut app, DENOM, 10 * arch, &owner);
-    let pair = helper
+    let _r = mint_native(&mut app, DENOM, 10 * arch, &owner);
+    let _pair = helper
         .create_pair(
             &mut app,
             &owner,
@@ -294,7 +294,7 @@ fn test_native_to_token_swap() {
                 native_asset_info(String::from(DENOM)),
                 token_asset_info(token_x.clone()),
             ],
-            Some(to_binary(&params).unwrap()),
+            Some(to_json_binary(&params).unwrap()),
         )
         .unwrap();
     let n = 10_000_00000u128;
@@ -378,12 +378,12 @@ fn test_token_to_native_swap() {
         price_scale: Decimal::from_ratio(1u8, 2u8),
         ..common_pcl_params()
     };
-    for (a, b, typ, liq) in [
+    for (a, b, _typ, liq) in [
         (&token_x, &token_y, PairType::Xyk {}, 800_000_000_000_000),
         (&token_y, &token_z, PairType::Stable {}, 900_000_000000_000),
     ] {
-        let params = Some(to_binary(&params).unwrap());
-        let pair = helper
+        let params = Some(to_json_binary(&params).unwrap());
+        let _pair = helper
             .create_pair(
                 &mut app,
                 &owner,
@@ -406,8 +406,8 @@ fn test_token_to_native_swap() {
     app.execute_contract(owner.clone(), token_x.clone(), &msg, &[])
         .unwrap();
     let arch = n * 1000000000000000;
-    let r = mint_native(&mut app, DENOM, 10 * arch, &owner);
-    let pair = helper
+    let _r = mint_native(&mut app, DENOM, 10 * arch, &owner);
+    let _pair = helper
         .create_pair(
             &mut app,
             &owner,
@@ -415,7 +415,7 @@ fn test_token_to_native_swap() {
                 native_asset_info(String::from(DENOM)),
                 token_asset_info(token_x.clone()),
             ],
-            Some(to_binary(&params).unwrap()),
+            Some(to_json_binary(&params).unwrap()),
         )
         .unwrap();
     let m = 100_000_000_000_000u128;
@@ -445,7 +445,7 @@ fn test_token_to_native_swap() {
     let swap_msg = Cw20ExecuteMsg::Send {
         contract: pool_manager.clone().to_string(),
         amount: Uint128::from(1000000000u128),
-        msg: to_binary(&Cw20HookMsg::ExecuteSwapOperations {
+        msg: to_json_binary(&Cw20HookMsg::ExecuteSwapOperations {
             operations: vec![SwapOperation {
                 offer_asset_info: AssetInfo::Token {
                     contract_addr: token_x.clone(),
