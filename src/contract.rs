@@ -165,7 +165,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
                 .add_attribute("liquidity_token_addr", config.pair_info.liquidity_token))
                //return  Err(ContractError::FailedToParseReply {})
             }else{
-                return  Err(ContractError::FailedToParseReply {})
+                Err(ContractError::FailedToParseReply {})
             }
                   
         }
