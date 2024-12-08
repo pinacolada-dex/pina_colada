@@ -50,12 +50,12 @@ const INSTANTIATE_TOKEN_REPLY_ID: u64 = 1;
 /// These are all the swap operations for which we perform a simulation.
 pub static DENOM: &str = "aarch";
 
-pub fn generate_key_from_assets(assets: &Vec<Asset>) -> String {
+pub fn generate_key_from_assets(assets: &[Asset]) -> String {
     str::from_utf8(&pair_key(&[assets[0].clone().info, assets[1].clone().info]))
         .unwrap()
         .to_string()
 }
-pub fn generate_key_from_asset_info(assets: &Vec<AssetInfo>) -> String {
+pub fn generate_key_from_asset_info(assets: &[AssetInfo]) -> String {
     str::from_utf8(&pair_key(&[assets[0].clone(), assets[1].clone()]))
         .unwrap()
         .to_string()
