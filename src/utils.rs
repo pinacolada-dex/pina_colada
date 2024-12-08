@@ -11,7 +11,7 @@ pub(crate) fn query_pools(
     precisions: &Precisions,
 ) -> Result<Vec<DecimalAsset>, ContractError> {
     //
-    let key=generate_key_from_asset_info(&([config.pair_info.asset_infos[0].clone(),config.pair_info.asset_infos[1].clone()].to_vec()));
+    let key=generate_key_from_asset_info([config.pair_info.asset_infos[0].clone(),config.pair_info.asset_infos[1].clone()].as_ref());
     println!("{}",key);
     let pairs=PAIR_BALANCES.load(deps.storage,key).unwrap();
     println!("{:?}",pairs);
@@ -31,7 +31,7 @@ pub(crate) fn query_pools_sim(
     precisions: &Precisions,
 ) -> Result<Vec<DecimalAsset>, ContractError> {
     //
-    let key=generate_key_from_asset_info(&([config.pair_info.asset_infos[0].clone(),config.pair_info.asset_infos[1].clone()].to_vec()));
+    let key=generate_key_from_asset_info([config.pair_info.asset_infos[0].clone(),config.pair_info.asset_infos[1].clone()].as_ref());
     println!("{}",key);
     let pairs=PAIR_BALANCES.load(deps.storage,key).unwrap();
     println!("{:?}",pairs);

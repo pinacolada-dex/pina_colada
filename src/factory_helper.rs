@@ -6,8 +6,8 @@ use cosmwasm_std::{coins, Addr, Binary, Decimal};
 use cw20::MinterResponse;
 use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 
-use astroport::asset::{Asset, AssetInfo, PairInfo};
-use astroport::factory::{PairConfig, PairType, QueryMsg};
+use astroport::asset::{Asset, AssetInfo};
+
 use crate::msg::ExecuteMsg::{self, CreatePair};
 pub struct FactoryHelper {
     pub owner: Addr,   
@@ -49,13 +49,13 @@ impl FactoryHelper {
 
         router.execute_contract(sender.clone(), self.pool_manager.clone(), &msg, &[])?;
 
-        /**let res: PairInfo = router.wrap().query_wasm_smart(
-            self.pool_manager.clone(),
-            &QueryMsg::Pair {
-                asset_infos: asset_infos.to_vec(),
-            },
-        )?;
-        **/
+        // let res: PairInfo = router.wrap().query_wasm_smart(
+        //     self.pool_manager.clone(),
+        //     &QueryMsg::Pair {
+        //         asset_infos: asset_infos.to_vec(),
+        //     },
+        // )?;
+        
         Ok(self.pool_manager.clone())
     }
     pub fn provide_liquidity_with_slip_tolerance(
@@ -68,7 +68,7 @@ impl FactoryHelper {
        
 
         let msg = ExecuteMsg::ProvideLiquidity {
-            assets: assets.clone().to_vec(),
+            assets: assets.to_vec(),
             slippage_tolerance,
             auto_stake: None,
             receiver: None,

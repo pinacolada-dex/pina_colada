@@ -1,17 +1,17 @@
-use astroport::asset::{addr_opt_validate, Asset, AssetInfo};
+use astroport::asset::{addr_opt_validate, AssetInfo};
 use astroport::pair::PoolResponse;
 use astroport::querier::query_supply;
 
 
 use astroport_pcl_common::utils::check_cw20_in_pool;
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Addr, Api, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsgResponse, SubMsgResult, Uint128
+    entry_point, from_json, to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsgResponse, SubMsgResult
 };
 use cw2::{get_contract_version, set_contract_version};
 use cw20::Cw20ReceiveMsg;
 use cw_utils::{must_pay, parse_instantiate_response_data};
 
-use crate::msg::SwapOperation;
+
 
 use astroport::router::{
     InstantiateMsg, MigrateMsg,
@@ -19,7 +19,7 @@ use astroport::router::{
 
 use crate::msg::{ExecuteMsg,QueryMsg,Cw20HookMsg};
 use crate::error::ContractError;
-use crate::handlers::{execute_create_pair, execute_provide_liquidity, execute_swap_operations, execute_withdraw_liquidity, generate_key_from_asset_info, generate_key_from_assets, DENOM};
+use crate::handlers::{execute_create_pair, execute_provide_liquidity, execute_swap_operations, execute_withdraw_liquidity, generate_key_from_asset_info, DENOM};
 
 use crate::query::{query_compute_d, query_lp_price, simulate_swap_operations,query_config};
 use crate::state::{ PAIR_BALANCES, POOLS, QUEUED_MINT};
@@ -110,7 +110,7 @@ pub fn receive_cw20(
     info:MessageInfo,
     cw20_msg: Cw20ReceiveMsg,
 ) -> Result<Response, ContractError> {
-    match from_binary(&cw20_msg.msg)? {
+    match from_json(&cw20_msg.msg)? {
         Cw20HookMsg::ExecuteSwapOperations {
             operations,
             minimum_receive,
@@ -119,13 +119,13 @@ pub fn receive_cw20(
         } => {
             //println!("{} is {}",info.sender.clone(),String::from("Test"));
             
-            let pool_key=generate_key_from_asset_info(&[operations[0].clone().offer_asset_info,operations[0].clone().ask_asset_info].to_vec());
+            let pool_key=generate_key_from_asset_info([operations[0].clone().offer_asset_info,operations[0].clone().ask_asset_info].as_ref());
             let config=POOLS.may_load(deps.storage, pool_key.clone()).unwrap();
 
             // Only asset contract can execute this message
             check_cw20_in_pool(&config.unwrap(), &info.sender)?;
 
-            let to_addr = addr_opt_validate(deps.api, &to)?;
+            let _to_addr = addr_opt_validate(deps.api, &to)?;
             execute_swap_operations(
             deps,
             env,
@@ -146,7 +146,7 @@ pub fn receive_cw20(
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg {
         Reply {
-            id: _INSTANTIATE_TOKEN_REPLY_ID,
+            id: _instantiate_token_reply_id,
             result:
                 SubMsgResult::Ok(SubMsgResponse {
                     data: Some(data), ..
@@ -165,7 +165,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
                 .add_attribute("liquidity_token_addr", config.pair_info.liquidity_token))
                //return  Err(ContractError::FailedToParseReply {})
             }else{
-                return  Err(ContractError::FailedToParseReply {})
+                Err(ContractError::FailedToParseReply {})
             }
                   
         }
@@ -188,23 +188,23 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
         QueryMsg::SimulateSwapOperations {
             offer_amount,
             operations,
-        } => Ok(to_binary(&simulate_swap_operations(
+        } => Ok(to_json_binary(&simulate_swap_operations(
             deps,
             env,
             offer_amount,
             operations,
         )?)?),
-        QueryMsg::Pool {pool_key} => Ok(to_binary(&query_pool(deps,pool_key)?)?),
-        QueryMsg::Pair {pool_key} => Ok(to_binary(&POOLS.load(deps.storage,pool_key)?.pair_info)?),
-        QueryMsg::ComputeD { pool_key }=>Ok(to_binary(&query_compute_d(deps,env,pool_key)?)?),
-        QueryMsg::Config {pool_key  }=> Ok(to_binary(&query_config(deps,env,pool_key)?)?),
-        QueryMsg::LpPrice {pool_key  }=>Ok(to_binary(&query_lp_price(deps,env,pool_key)?)?),
+        QueryMsg::Pool {pool_key} => Ok(to_json_binary(&query_pool(deps,pool_key)?)?),
+        QueryMsg::Pair {pool_key} => Ok(to_json_binary(&POOLS.load(deps.storage,pool_key)?.pair_info)?),
+        QueryMsg::ComputeD { pool_key }=>Ok(to_json_binary(&query_compute_d(deps,env,pool_key)?)?),
+        QueryMsg::Config {pool_key  }=> Ok(to_json_binary(&query_config(deps,env,pool_key)?)?),
+        QueryMsg::LpPrice {pool_key  }=>Ok(to_json_binary(&query_lp_price(deps,env,pool_key)?)?),
 }
 }
 fn query_pool(deps: Deps,pool_key:String)->StdResult<PoolResponse>{
     let config= POOLS.load(deps.storage,pool_key.clone())?;
     let assets= PAIR_BALANCES.load(deps.storage,pool_key.clone())?;
-    let total_share = query_supply(&deps.querier, &config.pair_info.liquidity_token)?;
+    let total_share = query_supply(&deps.querier, config.pair_info.liquidity_token)?;
     let resp = PoolResponse {
         assets,
         total_share,

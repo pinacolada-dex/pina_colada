@@ -20,7 +20,7 @@ use astroport_pcl_common::utils::{
     mint_liquidity_token_message,
 };
 use astroport_pcl_common::{calc_d, get_xcp};
-use cosmwasm_schema::serde::de;
+
 use std::str;
 
 use crate::error::ContractError;
@@ -31,7 +31,7 @@ use crate::state::{
 };
 use crate::utils::query_pools;
 use cosmwasm_std::{
-    attr, from_binary, to_binary, wasm_execute, wasm_instantiate, Addr, Api, BankMsg, Binary, Coin,
+    attr, from_json, to_json_binary, wasm_execute, wasm_instantiate, Addr, Api, BankMsg, Binary, Coin,
     CosmosMsg, Decimal, Decimal256, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
     SubMsg, Uint128, WasmMsg,
 };
@@ -50,12 +50,12 @@ const INSTANTIATE_TOKEN_REPLY_ID: u64 = 1;
 /// These are all the swap operations for which we perform a simulation.
 pub static DENOM: &str = "aarch";
 
-pub fn generate_key_from_assets(assets: &Vec<Asset>) -> String {
+pub fn generate_key_from_assets(assets: &[Asset]) -> String {
     str::from_utf8(&pair_key(&[assets[0].clone().info, assets[1].clone().info]))
         .unwrap()
         .to_string()
 }
-pub fn generate_key_from_asset_info(assets: &Vec<AssetInfo>) -> String {
+pub fn generate_key_from_asset_info(assets: &[AssetInfo]) -> String {
     str::from_utf8(&pair_key(&[assets[0].clone(), assets[1].clone()]))
         .unwrap()
         .to_string()
@@ -160,7 +160,7 @@ pub fn execute_provide_liquidity(
     }
     // get assets indices
     let first_asset_index = find_asset_index(deps, pool_key.clone(), assets[0].clone());
-    let second_asset_index = 1 ^ first_asset_index;
+    let _second_asset_index = 1 ^ first_asset_index;
 
     //println!("CHECKING ASSETS");
     check_assets(deps.api, &assets)?;
@@ -171,7 +171,7 @@ pub fn execute_provide_liquidity(
     let precisions = Precisions::new(deps.storage)?;
 
     //println!("QUERY POOLS");
-    let mut pools = query_pools(&deps, &config, &precisions)?;
+    let mut pools = query_pools(deps, &config, &precisions)?;
 
     if pools[0].info.equal(&assets[1].info) {
         assets.swap(0, 1);
@@ -283,15 +283,11 @@ pub fn execute_provide_liquidity(
     let share_ratio = share / (total_share + share);
     //println!("share ratio");
     //println!("{:?}", share_ratio);
-    let balanced_share = vec![
-        new_xp[0] * share_ratio,
-        new_xp[1] * share_ratio / config.pool_state.price_state.price_scale,
-    ];
+    let balanced_share = [new_xp[0] * share_ratio,
+        new_xp[1] * share_ratio / config.pool_state.price_state.price_scale];
 
-    let assets_diff = vec![
-        deposits[0].diff(balanced_share[0]),
-        deposits[1].diff(balanced_share[1]),
-    ];
+    let assets_diff = [deposits[0].diff(balanced_share[0]),
+        deposits[1].diff(balanced_share[1])];
 
     let mut slippage = Decimal256::zero();
 
@@ -370,13 +366,13 @@ pub fn execute_withdraw_liquidity(
 ) -> Result<Response, ContractError> {
     let pool = generate_key_from_assets(&assets);
     let mut config = POOLS.load(deps.storage, pool.clone())?;
-   ;
+
     if info.sender != config.pair_info.liquidity_token {
         return Err(ContractError::Unauthorized {});
     }
 
     let precisions = Precisions::new(deps.storage)?;
-    let pools = query_pools(&deps, &config, &precisions)?;
+    let pools = query_pools(deps, &config, &precisions)?;
 
     decrease_pair_balances(deps, pool.clone(), [amount, amount].to_vec());
 
@@ -474,7 +470,7 @@ pub fn execute_create_pair(
     check_asset_infos(deps.api, &asset_infos)?;
 
     let params: ConcentratedPoolParams =
-        from_binary(&init_params.ok_or(ContractError::InitParamsNotFound {})?)?;
+        from_json(init_params.ok_or(ContractError::InitParamsNotFound {})?)?;
 
     if params.price_scale.is_zero() {
         return Err(StdError::generic_err("Initial price scale can not be zero").into());
@@ -601,7 +597,7 @@ pub fn execute_swap_operations(
             (operation.1.offer_asset_info, operation.1.ask_asset_info);
         if operation.0 == operations_len - 1 {
             let pool_key = generate_key_from_asset_info(
-                &[offer_asset_info.clone(), ask_asset_info.clone()].to_vec(),
+                [offer_asset_info.clone(), ask_asset_info.clone()].as_ref(),
             );
             let offer_asset = Asset {
                 info: offer_asset_info.clone(),
@@ -623,7 +619,7 @@ pub fn execute_swap_operations(
                 AssetInfo::Token { contract_addr } => {
                     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: contract_addr.to_string(),
-                        msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                        msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
                             recipient: recipient.to_string(),
                             amount: return_amount,
                         })?,
@@ -636,7 +632,7 @@ pub fn execute_swap_operations(
             }
         } else {
             let pool_key = generate_key_from_asset_info(
-                &[offer_asset_info.clone(), ask_asset_info.clone()].to_vec(),
+                [offer_asset_info.clone(), ask_asset_info.clone()].as_ref(),
             );
             let offer_asset = Asset {
                 info: offer_asset_info.clone(),
@@ -689,7 +685,7 @@ fn swap_internal(
     let mut config = POOLS.load(deps.storage, pool_key.clone())?;
     increment_asset_balance(deps, pool_key.clone(), offer_ind, offer_asset.amount);
 
-    let mut pools = query_pools(&deps, &config, &precisions)?;
+    let mut pools = query_pools(deps, &config, &precisions)?;
 
     let ask_asset_prec = precisions.get_precision(&pools[ask_ind].info)?;
     //println!("{},{}", pools[offer_ind].amount, "SUBTRACTION");
@@ -705,7 +701,7 @@ fn swap_internal(
         offer_asset_dec.amount,
         ask_ind,
         &config,
-        &env,
+        env,
         Decimal256::zero(),
         Decimal256::zero(),
     )?;
@@ -738,37 +734,37 @@ fn swap_internal(
         xs[1] *= config.pool_state.price_state.price_scale;
         config
             .pool_state
-            .update_price(&config.pool_params, &env, total_share, &xs, last_price)?;
+            .update_price(&config.pool_params, env, total_share, &xs, last_price)?;
     }
 
-    /**let receiver = to.unwrap_or_else(|| sender.clone());
+    //let receiver = to.unwrap_or_else(|| sender.clone());
 
-    let mut messages = vec![Asset {
-        info: pools[ask_ind].info.clone(),
-        amount: return_amount,
-    }
-    .into_msg(&receiver)?];
+    // let mut messages = vec![Asset {
+    //     info: pools[ask_ind].info.clone(),
+    //     amount: return_amount,
+    // }
+    // .into_msg(&receiver)?];
 
-    // Send the shared fee
-    let mut fee_share_amount = Uint128::zero();
-    if let Some(fee_share) = config.fee_share.clone() {
-        fee_share_amount = swap_result.share_fee.to_uint(ask_asset_prec)?;
-        if !fee_share_amount.is_zero() {
-            let fee = pools[ask_ind].info.with_balance(fee_share_amount);
-            messages.push(fee.into_msg(fee_share.recipient)?);
-        }
-    }
+    // // Send the shared fee
+    // let mut fee_share_amount = Uint128::zero();
+    // if let Some(fee_share) = config.fee_share.clone() {
+    //     fee_share_amount = swap_result.share_fee.to_uint(ask_asset_prec)?;
+    //     if !fee_share_amount.is_zero() {
+    //         let fee = pools[ask_ind].info.with_balance(fee_share_amount);
+    //         messages.push(fee.into_msg(fee_share.recipient)?);
+    //     }
+    // }
 
-    // Send the maker fee
-    let mut maker_fee = Uint128::zero();
-    if let Some(fee_address) = fee_info.fee_address {
-        maker_fee = swap_result.maker_fee.to_uint(ask_asset_prec)?;
-        if !maker_fee.is_zero() {
-            let fee = pools[ask_ind].info.with_balance(maker_fee);
-            messages.push(fee.into_msg(fee_address)?);
-        }
-    }
-    **/
+    // // Send the maker fee
+    // let mut maker_fee = Uint128::zero();
+    // if let Some(fee_address) = fee_info.fee_address {
+    //     maker_fee = swap_result.maker_fee.to_uint(ask_asset_prec)?;
+    //     if !maker_fee.is_zero() {
+    //         let fee = pools[ask_ind].info.with_balance(maker_fee);
+    //         messages.push(fee.into_msg(fee_address)?);
+    //     }
+    // }
+    
     // Store observation from precommit data
     //accumulate_swap_sizes(deps.storage, &env)?;
 
@@ -781,7 +777,7 @@ fn swap_internal(
         } else {
             (return_amount, offer_asset.amount)
         };
-        PrecommitObservation::save(deps.storage, &env, base_amount, quote_amount)?;
+        PrecommitObservation::save(deps.storage, env, base_amount, quote_amount)?;
     }
 
     POOLS.save(deps.storage, pool_key, &config)?;
