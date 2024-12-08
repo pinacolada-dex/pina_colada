@@ -119,7 +119,7 @@ pub fn receive_cw20(
         } => {
             //println!("{} is {}",info.sender.clone(),String::from("Test"));
             
-            let pool_key=generate_key_from_asset_info(&[operations[0].clone().offer_asset_info,operations[0].clone().ask_asset_info].to_vec());
+            let pool_key=generate_key_from_asset_info([operations[0].clone().offer_asset_info,operations[0].clone().ask_asset_info].as_ref());
             let config=POOLS.may_load(deps.storage, pool_key.clone()).unwrap();
 
             // Only asset contract can execute this message

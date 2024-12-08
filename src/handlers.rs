@@ -597,7 +597,7 @@ pub fn execute_swap_operations(
             (operation.1.offer_asset_info, operation.1.ask_asset_info);
         if operation.0 == operations_len - 1 {
             let pool_key = generate_key_from_asset_info(
-                &[offer_asset_info.clone(), ask_asset_info.clone()].to_vec(),
+                [offer_asset_info.clone(), ask_asset_info.clone()].as_ref(),
             );
             let offer_asset = Asset {
                 info: offer_asset_info.clone(),
@@ -632,7 +632,7 @@ pub fn execute_swap_operations(
             }
         } else {
             let pool_key = generate_key_from_asset_info(
-                &[offer_asset_info.clone(), ask_asset_info.clone()].to_vec(),
+                [offer_asset_info.clone(), ask_asset_info.clone()].as_ref(),
             );
             let offer_asset = Asset {
                 info: offer_asset_info.clone(),

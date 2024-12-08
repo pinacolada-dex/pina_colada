@@ -31,7 +31,7 @@ pub fn simulate_swap_operations(
 
     for operation in operations.into_iter() {
         let (offer_asset_info,ask_asset_info)= (operation.offer_asset_info,operation.ask_asset_info);
-        let pool_key=generate_key_from_asset_info(&[offer_asset_info.clone(),ask_asset_info.clone()].to_vec());
+        let pool_key=generate_key_from_asset_info([offer_asset_info.clone(),ask_asset_info.clone()].as_ref());
         let offer_asset=  Asset {
             info: offer_asset_info.clone(),
             amount:return_amount,
