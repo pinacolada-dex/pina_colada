@@ -20,7 +20,7 @@ use astroport_pcl_common::utils::{
     mint_liquidity_token_message,
 };
 use astroport_pcl_common::{calc_d, get_xcp};
-use cosmwasm_schema::serde::de;
+
 use std::str;
 
 use crate::error::ContractError;
@@ -160,7 +160,7 @@ pub fn execute_provide_liquidity(
     }
     // get assets indices
     let first_asset_index = find_asset_index(deps, pool_key.clone(), assets[0].clone());
-    let second_asset_index = 1 ^ first_asset_index;
+    let _second_asset_index = 1 ^ first_asset_index;
 
     //println!("CHECKING ASSETS");
     check_assets(deps.api, &assets)?;

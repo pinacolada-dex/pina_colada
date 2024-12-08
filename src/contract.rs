@@ -1,17 +1,17 @@
-use astroport::asset::{addr_opt_validate, Asset, AssetInfo};
+use astroport::asset::{addr_opt_validate, AssetInfo};
 use astroport::pair::PoolResponse;
 use astroport::querier::query_supply;
 
 
 use astroport_pcl_common::utils::check_cw20_in_pool;
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Addr, Api, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsgResponse, SubMsgResult, Uint128
+    entry_point, from_binary, to_binary, Addr, Api, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsgResponse, SubMsgResult
 };
 use cw2::{get_contract_version, set_contract_version};
 use cw20::Cw20ReceiveMsg;
 use cw_utils::{must_pay, parse_instantiate_response_data};
 
-use crate::msg::SwapOperation;
+
 
 use astroport::router::{
     InstantiateMsg, MigrateMsg,
@@ -19,7 +19,7 @@ use astroport::router::{
 
 use crate::msg::{ExecuteMsg,QueryMsg,Cw20HookMsg};
 use crate::error::ContractError;
-use crate::handlers::{execute_create_pair, execute_provide_liquidity, execute_swap_operations, execute_withdraw_liquidity, generate_key_from_asset_info, generate_key_from_assets, DENOM};
+use crate::handlers::{execute_create_pair, execute_provide_liquidity, execute_swap_operations, execute_withdraw_liquidity, generate_key_from_asset_info, DENOM};
 
 use crate::query::{query_compute_d, query_lp_price, simulate_swap_operations,query_config};
 use crate::state::{ PAIR_BALANCES, POOLS, QUEUED_MINT};
@@ -125,7 +125,7 @@ pub fn receive_cw20(
             // Only asset contract can execute this message
             check_cw20_in_pool(&config.unwrap(), &info.sender)?;
 
-            let to_addr = addr_opt_validate(deps.api, &to)?;
+            let _to_addr = addr_opt_validate(deps.api, &to)?;
             execute_swap_operations(
             deps,
             env,

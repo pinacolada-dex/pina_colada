@@ -1,5 +1,5 @@
 use astroport::asset::{Asset, AssetInfo};
-use cosmwasm_std::{Addr, CustomQuery, Order, StdResult, Storage, Uint128};
+use cosmwasm_std::{CustomQuery, Order, StdResult, Storage, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw_storage_plus::{Item, Map, SnapshotMap};
 use itertools::Itertools;
@@ -28,7 +28,7 @@ impl<'a> Precisions {
     ) -> StdResult<()> {
         for asset_info in asset_infos {
             let decimals= match asset_info {
-                AssetInfo::NativeToken { denom } => {
+                AssetInfo::NativeToken { denom: _ } => {
                     18u8
                     
                 }
