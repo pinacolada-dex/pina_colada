@@ -86,20 +86,20 @@ pub fn increment_asset_balance(deps: &mut DepsMut, key: String, index: usize, am
     let mut balances = PAIR_BALANCES.load(deps.storage, key.clone()).unwrap();
 
     balances[index].amount += amount;
-    PAIR_BALANCES.save(deps.storage, key, &balances);
+    let _ = PAIR_BALANCES.save(deps.storage, key, &balances);
 }
 pub fn decrease_asset_balance(deps: &mut DepsMut, key: String, index: usize, amount: Uint128) {
     let mut balances = PAIR_BALANCES.load(deps.storage, key.clone()).unwrap();
 
     balances[index].amount -= amount;
-    PAIR_BALANCES.save(deps.storage, key, &balances);
+    let _ = PAIR_BALANCES.save(deps.storage, key, &balances);
 }
 pub fn increment_pair_balances(deps: &mut DepsMut, key: String, amounts: Vec<Uint128>) {
     let mut curr = PAIR_BALANCES.load(deps.storage, key.clone()).unwrap();
     for (i, v) in amounts.into_iter().enumerate() {
         curr[i].amount += v;
     }
-    PAIR_BALANCES.save(deps.storage, key, &curr);
+    let _ = PAIR_BALANCES.save(deps.storage, key, &curr);
 }
 
 pub fn decrease_pair_balances(deps: &mut DepsMut, key: String, amounts: Vec<Uint128>) {
@@ -108,7 +108,7 @@ pub fn decrease_pair_balances(deps: &mut DepsMut, key: String, amounts: Vec<Uint
         println!("{} {} {}", curr[i], v, "amounts");
         curr[i].amount -= v;
     }
-    PAIR_BALANCES.save(deps.storage, key, &curr);
+    let _ = PAIR_BALANCES.save(deps.storage, key, &curr);
 }
 
 pub fn pair_key(asset_infos: &[AssetInfo]) -> Vec<u8> {

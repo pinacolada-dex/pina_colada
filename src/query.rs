@@ -10,7 +10,7 @@ use astroport_pcl_common::{calc_d, get_xcp};
 use astroport_pcl_common::utils::compute_swap;
 use crate::state::Precisions;
 use astroport_pcl_common::utils::before_swap_check;
-use cosmwasm_std::{to_binary, Addr, Decimal, Decimal256, Deps, Env, StdError, Uint128};
+use cosmwasm_std::{to_json_binary, Addr, Decimal, Decimal256, Deps, Env, StdError, Uint128};
 use itertools::Itertools;
 use astroport::pair_concentrated::ConcentratedPoolConfig;
 use crate::error::ContractError;
@@ -128,7 +128,7 @@ pub fn query_config(deps: Deps, env: Env,pool_key:String) -> Result<ConfigRespon
    
     Ok(ConfigResponse {
         block_time_last: 0, // keeping this field for backwards compatibility
-        params: Some(to_binary(&ConcentratedPoolConfig {
+        params: Some(to_json_binary(&ConcentratedPoolConfig {
             amp: amp_gamma.amp,
             gamma: amp_gamma.gamma,
             mid_fee: config.pool_params.mid_fee,

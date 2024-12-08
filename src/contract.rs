@@ -5,7 +5,7 @@ use astroport::querier::query_supply;
 
 use astroport_pcl_common::utils::check_cw20_in_pool;
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Addr, Api, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsgResponse, SubMsgResult
+    entry_point, from_json, to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsgResponse, SubMsgResult
 };
 use cw2::{get_contract_version, set_contract_version};
 use cw20::Cw20ReceiveMsg;
@@ -110,7 +110,7 @@ pub fn receive_cw20(
     info:MessageInfo,
     cw20_msg: Cw20ReceiveMsg,
 ) -> Result<Response, ContractError> {
-    match from_binary(&cw20_msg.msg)? {
+    match from_json(&cw20_msg.msg)? {
         Cw20HookMsg::ExecuteSwapOperations {
             operations,
             minimum_receive,
@@ -146,7 +146,7 @@ pub fn receive_cw20(
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg {
         Reply {
-            id: _INSTANTIATE_TOKEN_REPLY_ID,
+            id: _instantiate_token_reply_id,
             result:
                 SubMsgResult::Ok(SubMsgResponse {
                     data: Some(data), ..
@@ -188,17 +188,17 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
         QueryMsg::SimulateSwapOperations {
             offer_amount,
             operations,
-        } => Ok(to_binary(&simulate_swap_operations(
+        } => Ok(to_json_binary(&simulate_swap_operations(
             deps,
             env,
             offer_amount,
             operations,
         )?)?),
-        QueryMsg::Pool {pool_key} => Ok(to_binary(&query_pool(deps,pool_key)?)?),
-        QueryMsg::Pair {pool_key} => Ok(to_binary(&POOLS.load(deps.storage,pool_key)?.pair_info)?),
-        QueryMsg::ComputeD { pool_key }=>Ok(to_binary(&query_compute_d(deps,env,pool_key)?)?),
-        QueryMsg::Config {pool_key  }=> Ok(to_binary(&query_config(deps,env,pool_key)?)?),
-        QueryMsg::LpPrice {pool_key  }=>Ok(to_binary(&query_lp_price(deps,env,pool_key)?)?),
+        QueryMsg::Pool {pool_key} => Ok(to_json_binary(&query_pool(deps,pool_key)?)?),
+        QueryMsg::Pair {pool_key} => Ok(to_json_binary(&POOLS.load(deps.storage,pool_key)?.pair_info)?),
+        QueryMsg::ComputeD { pool_key }=>Ok(to_json_binary(&query_compute_d(deps,env,pool_key)?)?),
+        QueryMsg::Config {pool_key  }=> Ok(to_json_binary(&query_config(deps,env,pool_key)?)?),
+        QueryMsg::LpPrice {pool_key  }=>Ok(to_json_binary(&query_lp_price(deps,env,pool_key)?)?),
 }
 }
 fn query_pool(deps: Deps,pool_key:String)->StdResult<PoolResponse>{
