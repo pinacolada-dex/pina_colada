@@ -18,8 +18,9 @@ use astroport::router::{
 };
 
 use crate::msg::{ExecuteMsg,QueryMsg,Cw20HookMsg};
+
 use crate::error::ContractError;
-use crate::handlers::{execute_create_pair, execute_provide_liquidity, execute_swap_operations, execute_withdraw_liquidity, generate_key_from_asset_info, DENOM};
+use crate::handlers::{execute_create_pair, execute_provide_liquidity, execute_swap_operations, execute_withdraw_liquidity, generate_key_from_asset_info, DENOM, execute_modify_position};
 
 use crate::query::{query_compute_d, query_lp_price, simulate_swap_operations,query_config};
 use crate::state::{ PAIR_BALANCES, POOLS, QUEUED_MINT};
@@ -84,23 +85,35 @@ pub fn execute(
             assert_eq!(operations[0].clone().offer_asset_info,AssetInfo::NativeToken { denom: String::from(DENOM) });
             let amount=must_pay(&info,DENOM).unwrap();
             assert!(!amount.is_zero(),"Cannot Swap with Zero Input");
-            //println!("{} {}",amount,"VALUE to be Swapped");
             execute_swap_operations(
-            &mut deps,
-            env,
-            info.sender.clone(),
-            operations,
-            amount,
-            minimum_receive,
-            to,
-            max_spread,
-        )
+                &mut deps,
+                env,
+                info.sender.clone(),
+                operations,
+                amount,
+                minimum_receive,
+                to,
+                max_spread,
+            )
         },         
-         
         ExecuteMsg::CreatePair{asset_infos,token_code_id: _,init_params}=>execute_create_pair(&mut deps, env, info,init_params,asset_infos),
         
         ExecuteMsg::ProvideLiquidity{assets,slippage_tolerance,auto_stake,receiver}=>execute_provide_liquidity(&mut deps, env, info,assets,slippage_tolerance,auto_stake,receiver),
        // ExecuteMsg::WithdrawLiquidity{assets,amount}=>execute_withdraw_liquidity(&mut deps,env,info.clone(),info.sender.clone(),amount,assets),
+        ExecuteMsg::ModifyPosition {
+            assets,
+            position_id,
+            modification_type,
+            slippage_tolerance,
+        } => execute_modify_position(
+            &mut deps,
+            env,
+            info,
+            assets,
+            position_id,
+            modification_type,
+            slippage_tolerance,
+        ),
     }  
 }
 

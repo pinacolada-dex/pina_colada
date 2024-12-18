@@ -8,6 +8,7 @@ use astroport::observation::PrecommitObservation;
 use astroport::pair::MIN_TRADE_SIZE;
 use astroport::querier::query_supply;
 use astroport::token::InstantiateMsg as TokenInstantiateMsg;
+use astroport::cosmwasm_ext::{AbsDiff, DecimalToInteger, IntegerToDecimal, DecimalExt};
 
 use astroport::pair_concentrated::{ConcentratedPoolParams, UpdatePoolParams};
 
@@ -29,7 +30,8 @@ use crate::state::{
     decrease_asset_balance, decrease_pair_balances, find_asset_index, increment_asset_balance,
     increment_pair_balances, pair_key, BALANCES, PAIR_BALANCES, POOLS, QUEUED_MINT,Precisions
 };
-use crate::utils::query_pools;
+use crate::msg::PositionModification;
+use crate::state::{Position, POSITIONS};
 use cosmwasm_std::{
     attr, from_json, to_json_binary, wasm_execute, wasm_instantiate, Addr, Api, BankMsg, Binary, Coin,
     CosmosMsg, Decimal, Decimal256, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
@@ -570,6 +572,161 @@ pub fn execute_create_pair(
         }
         .to_owned(),
     ))
+}
+pub fn execute_modify_position(
+    deps: &mut DepsMut,
+    env: Env,
+    info: MessageInfo,
+    assets: Vec<Asset>,
+    position_id: String,
+    modification_type: PositionModification,
+    slippage_tolerance: Option<Decimal>,
+) -> Result<Response, ContractError> {
+    let pool_key = generate_key_from_assets(&assets);
+    let mut config = POOLS.load(deps.storage, pool_key.clone())?;
+    let mut pair_balances = PAIR_BALANCES.load(deps.storage, pool_key.clone())?;
+    
+    match modification_type {
+        PositionModification::Increase => {
+            // Check assets and sent funds
+            check_assets(deps.api, &assets)?;
+            info.funds.assert_coins_properly_sent(&assets, &config.pair_info.asset_infos)?;
+            
+            // Increment balances
+            for (i, asset) in assets.iter().enumerate() {
+                pair_balances[i].amount += asset.amount;
+            }
+            
+            // Save updated balances
+            PAIR_BALANCES.save(deps.storage, pool_key, &pair_balances)?;
+        },
+        PositionModification::Decrease => {
+            // Verify the decrease amounts are valid
+            for (i, asset) in assets.iter().enumerate() {
+                if asset.amount > pair_balances[i].amount {
+                    return Err(ContractError::InsufficientLiquidity {});
+                }
+                pair_balances[i].amount -= asset.amount;
+            }
+            
+            // Save updated balances
+            PAIR_BALANCES.save(deps.storage, pool_key, &pair_balances)?;
+            
+            // Send assets back to user
+            let messages: Vec<CosmosMsg> = assets
+                .iter()
+                .map(|asset| asset.into_msg(&info.sender))
+                .collect::<StdResult<_>>()?;
+        },
+        PositionModification::Rebalance => {
+            let total_value = pair_balances.iter()
+                .map(|asset| asset.amount)
+                .sum::<Uint128>();
+
+            // Check if new allocation maintains total value
+            let new_total = assets.iter()
+                .map(|asset| asset.amount)
+                .sum::<Uint128>();
+
+            if new_total != total_value {
+                return Err(ContractError::InvalidRebalance {});
+            }
+
+            // Update balances
+            for (i, asset) in assets.iter().enumerate() {
+                pair_balances[i].amount = asset.amount;
+            }
+            
+            PAIR_BALANCES.save(deps.storage, pool_key, &pair_balances)?;
+        }
+    }
+
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "modify_position"),
+        attr("position_id", position_id),
+        attr("modification_type", format!("{:?}", modification_type)),
+    ]))
+}
+
+// Helper functions
+
+fn calculate_deposits(
+    assets: &[Asset],
+    precisions: &Precisions,
+) -> Result<Vec<Decimal256>, ContractError> {
+    assets
+        .iter()
+        .map(|asset| {
+            let precision = precisions.get_precision(&asset.info)?;
+            Ok(Decimal256::with_precision(asset.amount, precision)?)
+        })
+        .collect()
+}
+
+fn calculate_shares_from_deposits(
+    deposits: &[Decimal256],
+    config: &Config,
+    env: &Env,
+    existing_shares: Uint128,
+    slippage_tolerance: Option<Decimal>,
+) -> Result<Uint128, ContractError> {
+    // Implement share calculation logic based on your AMM model
+    // This is a simplified example
+    let total_deposit_value = deposits.iter().sum::<Decimal256>();
+    let new_shares = total_deposit_value
+        .to_uint(LP_TOKEN_PRECISION)?;
+    
+    // Check slippage if specified
+    if let Some(max_slippage) = slippage_tolerance {
+        // Implement slippage check
+    }
+    
+    Ok(new_shares)
+}
+
+fn calculate_withdrawal_shares(
+    assets: &[Asset],
+    position: &Position,
+) -> Result<Uint128, ContractError> {
+    // Calculate proportional shares to withdraw based on requested assets
+    let mut max_ratio = Decimal::zero();
+    for (i, asset) in assets.iter().enumerate() {
+        let ratio = Decimal::from_ratio(asset.amount, position.assets[i].amount);
+        if ratio > max_ratio {
+            max_ratio = ratio;
+        }
+    }
+    
+    Ok(max_ratio.to_decimal256(6u8).mul(position.total_shares.to_decimal256(6u8)).to_uint_floor())
+}
+
+fn calculate_rebalance_amounts(
+    current_assets: &[Asset],
+    target_assets: &[Asset],
+    config: &Config,
+    slippage_tolerance: Option<Decimal>,
+) -> Result<(Vec<Asset>, Vec<Asset>), ContractError> {
+    // Calculate which assets need to be swapped to achieve target ratios
+    // This is a simplified implementation
+    let mut remove_assets = vec![];
+    let mut add_assets = vec![];
+    
+    for (i, target) in target_assets.iter().enumerate() {
+        let current = &current_assets[i];
+        if target.amount > current.amount {
+            add_assets.push(Asset {
+                info: target.info.clone(),
+                amount: target.amount - current.amount,
+            });
+        } else if target.amount < current.amount {
+            remove_assets.push(Asset {
+                info: target.info.clone(),
+                amount: current.amount - target.amount,
+            });
+        }
+    }
+    
+    Ok((remove_assets, add_assets))
 }
 
 #[allow(clippy::too_many_arguments)]

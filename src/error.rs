@@ -20,6 +20,9 @@ pub enum ContractError {
     #[error("{0}")]
     ConversionOverflowError(#[from] ConversionOverflowError),
 
+    #[error("Invalid rebalance parameters")]
+    InvalidRebalance {},
+
     #[error("Unauthorized")]
     Unauthorized{},
     #[error("Contract can't be migrated!")]
@@ -47,7 +50,8 @@ pub enum ContractError {
     #[error("Doubling assets in asset infos")]
     DoublingAssets {},
 
-   
+    #[error("Insufficient liquidity")]
+    InsufficientLiquidity {},
 
     #[error("Generator address is not set in factory. Cannot auto-stake")]
     AutoStakeError {},

@@ -70,8 +70,30 @@ pub enum ExecuteMsg {
         
         /// Optional binary serialised parameters for custom pool types
         init_params: Option<Binary>,
-    }
+    },
+
+    ModifyPosition {
+        /// The assets to modify
+        assets: Vec<Asset>,
+        /// The position ID to modify
+        position_id: String,
+        /// The type of modification
+        modification_type: PositionModification,
+        /// Optional slippage tolerance
+        slippage_tolerance: Option<Decimal>,
+    },
 }
+
+#[cw_serde]
+pub enum PositionModification {
+    /// Increase position size
+    Increase,
+    /// Decrease position size
+    Decrease,
+    /// Rebalance position (change asset ratios)
+    Rebalance,
+}
+
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {

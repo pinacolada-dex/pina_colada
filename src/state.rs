@@ -3,9 +3,12 @@ use cosmwasm_std::{CustomQuery, Order, StdResult, Storage, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw_storage_plus::{Item, Map, SnapshotMap};
 use itertools::Itertools;
+use cosmwasm_std::Addr;
 
 use astroport_pcl_common::{error::PclError, state::Config};
 use cosmwasm_std::DepsMut;
+use cosmwasm_schema::cw_serde;
+
 /// Stores pool parameters and state.
 
 pub struct Precisions(Vec<(String, u8)>);
@@ -110,6 +113,16 @@ pub fn decrease_pair_balances(deps: &mut DepsMut, key: String, amounts: Vec<Uint
     }
     let _ = PAIR_BALANCES.save(deps.storage, key, &curr);
 }
+
+#[cw_serde]
+pub struct Position {
+    pub owner: Addr,
+    pub assets: Vec<Asset>,
+    pub total_shares: Uint128,
+    pub last_modified_block: u64,
+}
+
+pub const POSITIONS: Map<String, Position> = Map::new("positions");
 
 pub fn pair_key(asset_infos: &[AssetInfo]) -> Vec<u8> {
     asset_infos
