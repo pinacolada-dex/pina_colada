@@ -1,5 +1,5 @@
 use astroport::asset::{Asset, AssetInfo};
-use cosmwasm_std::{Addr, CustomQuery, Order, StdResult, Storage, Uint128};
+use cosmwasm_std::{CustomQuery, Order, StdResult, Storage, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw_storage_plus::{Item, Map, SnapshotMap};
 use itertools::Itertools;
@@ -28,7 +28,7 @@ impl<'a> Precisions {
     ) -> StdResult<()> {
         for asset_info in asset_infos {
             let decimals= match asset_info {
-                AssetInfo::NativeToken { denom } => {
+                AssetInfo::NativeToken { denom: _ } => {
                     18u8
                     
                 }
@@ -86,29 +86,29 @@ pub fn increment_asset_balance(deps: &mut DepsMut, key: String, index: usize, am
     let mut balances = PAIR_BALANCES.load(deps.storage, key.clone()).unwrap();
 
     balances[index].amount += amount;
-    PAIR_BALANCES.save(deps.storage, key, &balances);
+    let _ = PAIR_BALANCES.save(deps.storage, key, &balances);
 }
 pub fn decrease_asset_balance(deps: &mut DepsMut, key: String, index: usize, amount: Uint128) {
     let mut balances = PAIR_BALANCES.load(deps.storage, key.clone()).unwrap();
 
     balances[index].amount -= amount;
-    PAIR_BALANCES.save(deps.storage, key, &balances);
+    let _ = PAIR_BALANCES.save(deps.storage, key, &balances);
 }
 pub fn increment_pair_balances(deps: &mut DepsMut, key: String, amounts: Vec<Uint128>) {
     let mut curr = PAIR_BALANCES.load(deps.storage, key.clone()).unwrap();
     for (i, v) in amounts.into_iter().enumerate() {
         curr[i].amount += v;
     }
-    PAIR_BALANCES.save(deps.storage, key, &curr);
+    let _ = PAIR_BALANCES.save(deps.storage, key, &curr);
 }
 
 pub fn decrease_pair_balances(deps: &mut DepsMut, key: String, amounts: Vec<Uint128>) {
     let mut curr = PAIR_BALANCES.load(deps.storage, key.clone()).unwrap();
     for (i, v) in amounts.into_iter().enumerate() {
-        println!("{} {} {}", curr[i], v, "amounts");
+        println!("{} {} amounts", curr[i], v);
         curr[i].amount -= v;
     }
-    PAIR_BALANCES.save(deps.storage, key, &curr);
+    let _ = PAIR_BALANCES.save(deps.storage, key, &curr);
 }
 
 pub fn pair_key(asset_infos: &[AssetInfo]) -> Vec<u8> {

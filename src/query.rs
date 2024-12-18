@@ -10,14 +10,14 @@ use astroport_pcl_common::{calc_d, get_xcp};
 use astroport_pcl_common::utils::compute_swap;
 use crate::state::Precisions;
 use astroport_pcl_common::utils::before_swap_check;
-use cosmwasm_std::{to_binary, Addr, Decimal, Decimal256, Deps, DepsMut, Env, StdError, Uint128};
+use cosmwasm_std::{to_json_binary, Addr, Decimal, Decimal256, Deps, Env, StdError, Uint128};
 use itertools::Itertools;
 use astroport::pair_concentrated::ConcentratedPoolConfig;
 use crate::error::ContractError;
 use crate::handlers::{generate_key_from_asset_info, LP_TOKEN_PRECISION};
 use crate::msg::SwapOperation;
 use crate::state::{ POOLS};
-use crate::utils::{query_pools, query_pools_sim};
+use crate::utils::{query_pools_sim};
 pub fn simulate_swap_operations(
     deps: Deps,
     env:Env,
@@ -31,7 +31,7 @@ pub fn simulate_swap_operations(
 
     for operation in operations.into_iter() {
         let (offer_asset_info,ask_asset_info)= (operation.offer_asset_info,operation.ask_asset_info);
-        let pool_key=generate_key_from_asset_info(&[offer_asset_info.clone(),ask_asset_info.clone()].to_vec());
+        let pool_key=generate_key_from_asset_info([offer_asset_info.clone(),ask_asset_info.clone()].as_ref());
         let offer_asset=  Asset {
             info: offer_asset_info.clone(),
             amount:return_amount,
@@ -51,7 +51,7 @@ pub fn query_simulation(
     offer_asset: Asset,
     pool_key:String
 ) -> Result<SimulationResponse, ContractError> {
-    let mut config = POOLS.load(deps.storage,pool_key.clone())?;
+    let config = POOLS.load(deps.storage,pool_key.clone())?;
     let precisions = Precisions::new(deps.storage)?;
     let offer_asset_prec = precisions.get_precision(&offer_asset.info)?;
     let offer_asset_dec = offer_asset.to_decimal_asset(offer_asset_prec)?;
@@ -70,10 +70,10 @@ pub fn query_simulation(
     let xs = pools.iter().map(|asset| asset.amount).collect_vec();
 
    
-    let mut maker_fee_share = Decimal256::zero();
+    let maker_fee_share = Decimal256::zero();
     
     // If this pool is configured to share fees
-    let mut share_fee_share = Decimal256::zero();
+    let share_fee_share = Decimal256::zero();
    
     let swap_result = compute_swap(
         &xs,
@@ -93,7 +93,7 @@ pub fn query_simulation(
 }
 /// Compute the current LP token virtual price.
 pub fn query_lp_price(deps: Deps, env: Env, pool_key:String) -> Result<Decimal256,ContractError> {
-    let mut config = POOLS.load(deps.storage,pool_key.clone())?;
+    let config = POOLS.load(deps.storage,pool_key.clone())?;
     let total_lp = query_supply(&deps.querier, &config.pair_info.liquidity_token)?
         .to_decimal256(LP_TOKEN_PRECISION)?;
     if !total_lp.is_zero() {
@@ -128,7 +128,7 @@ pub fn query_config(deps: Deps, env: Env,pool_key:String) -> Result<ConfigRespon
    
     Ok(ConfigResponse {
         block_time_last: 0, // keeping this field for backwards compatibility
-        params: Some(to_binary(&ConcentratedPoolConfig {
+        params: Some(to_json_binary(&ConcentratedPoolConfig {
             amp: amp_gamma.amp,
             gamma: amp_gamma.gamma,
             mid_fee: config.pool_params.mid_fee,
