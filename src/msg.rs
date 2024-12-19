@@ -1,29 +1,26 @@
+use astroport::{
+    asset::{Asset, AssetInfo, PairInfo},
+    pair::{ConfigResponse, PoolResponse},
+    router::SimulateSwapOperationsResponse,
+};
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use astroport::{asset::{Asset, AssetInfo, PairInfo}, pair::{ConfigResponse, PoolResponse}, router::SimulateSwapOperationsResponse};
 use cosmwasm_std::{Binary, Decimal, Decimal256, Uint128};
 
 use cw20::Cw20ReceiveMsg;
-
-
 
 pub const MAX_SWAP_OPERATIONS: usize = 50;
 
 /// This structure holds the parameters used for creating a contract.
 #[cw_serde]
 
-
 pub struct SwapOperation {
-   
     /// ASTRO swap
-    
-        /// Information about the asset being swapped
+
+    /// Information about the asset being swapped
     pub offer_asset_info: AssetInfo,
-        /// Information about the asset we swap to
+    /// Information about the asset we swap to
     pub ask_asset_info: AssetInfo,
-    
 }
-
-
 
 /**impl SwapOperation {
     pub fn get_target_asset_info(&self) -> AssetInfo {
@@ -50,7 +47,6 @@ pub enum ExecuteMsg {
 
     /// Internal use
     /// ExecuteSwapOperation executes a single swap operation
-   
     ProvideLiquidity {
         /// The assets available in the pool
         assets: Vec<Asset>,
@@ -61,13 +57,13 @@ pub enum ExecuteMsg {
         /// The receiver of LP tokens
         receiver: Option<String>,
     },
-    
+
     CreatePair {
         /// Information about assets in the pool
         asset_infos: Vec<AssetInfo>,
         /// The token contract code ID used for the tokens in the pool
         token_code_id: u64,
-        
+
         /// Optional binary serialised parameters for custom pool types
         init_params: Option<Binary>,
     },
@@ -98,7 +94,7 @@ pub enum PositionModification {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     /// Config returns configuration parameters for the contract using a custom [`ConfigResponse`] structure
-   
+
     /// SimulateSwapOperations simulates multi-hop swap operations
     #[returns(SimulateSwapOperationsResponse)]
     SimulateSwapOperations {
@@ -108,17 +104,16 @@ pub enum QueryMsg {
         operations: Vec<SwapOperation>,
     },
     #[returns(ConfigResponse)]
-    Config {pool_key:String},
+    Config { pool_key: String },
     #[returns(PoolResponse)]
-    Pool{pool_key:String},
+    Pool { pool_key: String },
     #[returns(PairInfo)]
-    Pair{pool_key:String},
+    Pair { pool_key: String },
     #[returns(Decimal256)]
-    ComputeD {pool_key:String},
+    ComputeD { pool_key: String },
     /// Query LP token virtual price
     #[returns(Decimal256)]
-    LpPrice {pool_key:String},
-    
+    LpPrice { pool_key: String },
 }
 #[cw_serde]
 pub enum Cw20HookMsg {

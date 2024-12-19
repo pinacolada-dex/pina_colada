@@ -2,18 +2,16 @@ use astroport::asset::{
     addr_opt_validate, format_lp_token_name, Asset, AssetInfo, CoinsExt, PairInfo,
     MINIMUM_LIQUIDITY_AMOUNT,
 };
+use astroport::cosmwasm_ext::{AbsDiff, DecimalToInteger, IntegerToDecimal};
 use astroport::factory::PairType;
 use astroport::observation::PrecommitObservation;
 use astroport::pair::MIN_TRADE_SIZE;
 use astroport::querier::query_supply;
 use astroport::token::InstantiateMsg as TokenInstantiateMsg;
-use astroport::cosmwasm_ext::{AbsDiff, DecimalToInteger, IntegerToDecimal};
 
 use astroport::pair_concentrated::{ConcentratedPoolParams, UpdatePoolParams};
 
-use astroport_pcl_common::state::{
-    AmpGamma, Config, PoolParams, PoolState,  PriceState,
-};
+use astroport_pcl_common::state::{AmpGamma, Config, PoolParams, PoolState, PriceState};
 use astroport_pcl_common::utils::{
     assert_max_spread, assert_slippage_tolerance, before_swap_check, calc_provide_fee,
     check_asset_infos, check_assets, compute_swap, get_share_in_assets,
@@ -25,18 +23,18 @@ use astroport::asset::Decimal256Ext;
 
 use std::str;
 
-use crate::utils::query_pools;
 use crate::error::ContractError;
+use crate::msg::PositionModification;
 use crate::msg::SwapOperation;
+use crate::state::Position;
 use crate::state::{
     decrease_asset_balance, decrease_pair_balances, find_asset_index, increment_asset_balance,
-    increment_pair_balances, pair_key, BALANCES, PAIR_BALANCES, POOLS, QUEUED_MINT,Precisions
+    increment_pair_balances, pair_key, Precisions, BALANCES, PAIR_BALANCES, POOLS, QUEUED_MINT,
 };
-use crate::msg::PositionModification;
-use crate::state::{Position};
+use crate::utils::query_pools;
 use cosmwasm_std::{
-    attr, from_json, to_json_binary, wasm_execute, wasm_instantiate, Addr, Api, BankMsg, Binary, Coin,
-    CosmosMsg, Decimal, Decimal256, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    attr, from_json, to_json_binary, wasm_execute, wasm_instantiate, Addr, Api, BankMsg, Binary,
+    Coin, CosmosMsg, Decimal, Decimal256, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
     SubMsg, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
@@ -287,11 +285,15 @@ pub fn execute_provide_liquidity(
     let share_ratio = share / (total_share + share);
     //println!("share ratio");
     //println!("{:?}", share_ratio);
-    let balanced_share = [new_xp[0] * share_ratio,
-        new_xp[1] * share_ratio / config.pool_state.price_state.price_scale];
+    let balanced_share = [
+        new_xp[0] * share_ratio,
+        new_xp[1] * share_ratio / config.pool_state.price_state.price_scale,
+    ];
 
-    let assets_diff = [deposits[0].diff(balanced_share[0]),
-        deposits[1].diff(balanced_share[1])];
+    let assets_diff = [
+        deposits[0].diff(balanced_share[0]),
+        deposits[1].diff(balanced_share[1]),
+    ];
 
     let mut slippage = Decimal256::zero();
 
@@ -587,21 +589,22 @@ pub fn execute_modify_position(
     let pool_key = generate_key_from_assets(&assets);
     let config = POOLS.load(deps.storage, pool_key.clone())?;
     let mut pair_balances = PAIR_BALANCES.load(deps.storage, pool_key.clone())?;
-    
+
     match modification_type {
         PositionModification::Increase => {
             // Check assets and sent funds
             check_assets(deps.api, &assets)?;
-            info.funds.assert_coins_properly_sent(&assets, &config.pair_info.asset_infos)?;
-            
+            info.funds
+                .assert_coins_properly_sent(&assets, &config.pair_info.asset_infos)?;
+
             // Increment balances
             for (i, asset) in assets.iter().enumerate() {
                 pair_balances[i].amount += asset.amount;
             }
-            
+
             // Save updated balances
             PAIR_BALANCES.save(deps.storage, pool_key, &pair_balances)?;
-        },
+        }
         PositionModification::Decrease => {
             // Verify the decrease amounts are valid
             for (i, asset) in assets.iter().enumerate() {
@@ -610,25 +613,24 @@ pub fn execute_modify_position(
                 }
                 pair_balances[i].amount -= asset.amount;
             }
-            
+
             // Save updated balances
             PAIR_BALANCES.save(deps.storage, pool_key, &pair_balances)?;
-            
+
             // Send assets back to user
             let _messages: Vec<CosmosMsg> = assets
                 .iter()
                 .map(|asset| asset.clone().into_msg(&info.sender))
                 .collect::<StdResult<_>>()?;
-        },
+        }
         PositionModification::Rebalance => {
-            let total_value = pair_balances.iter()
+            let total_value = pair_balances
+                .iter()
                 .map(|asset| asset.amount)
                 .sum::<Uint128>();
 
             // Check if new allocation maintains total value
-            let new_total = assets.iter()
-                .map(|asset| asset.amount)
-                .sum::<Uint128>();
+            let new_total = assets.iter().map(|asset| asset.amount).sum::<Uint128>();
 
             if new_total != total_value {
                 return Err(ContractError::InvalidRebalance {});
@@ -638,7 +640,7 @@ pub fn execute_modify_position(
             for (i, asset) in assets.iter().enumerate() {
                 pair_balances[i].amount = asset.amount;
             }
-            
+
             PAIR_BALANCES.save(deps.storage, pool_key, &pair_balances)?;
         }
     }
@@ -677,15 +679,14 @@ fn calculate_shares_from_deposits(
     // Implement share calculation logic based on your AMM model
     // This is a simplified example
     let total_deposit_value = deposits.iter().sum::<Decimal256>();
-    let new_shares = total_deposit_value
-        .to_uint(LP_TOKEN_PRECISION)?;
-    
+    let new_shares = total_deposit_value.to_uint(LP_TOKEN_PRECISION)?;
+
     // Check slippage if specified
     if let Some(_max_slippage) = slippage_tolerance {
         // Implement slippage check
         // XXX: TODO
     }
-    
+
     Ok(new_shares)
 }
 
@@ -702,8 +703,10 @@ fn calculate_withdrawal_shares(
             max_ratio = ratio;
         }
     }
-    
-    let ratio: Decimal = max_ratio.checked_mul(Decimal::from_atomics(position.total_shares, 6u32).unwrap()).unwrap();
+
+    let ratio: Decimal = max_ratio
+        .checked_mul(Decimal::from_atomics(position.total_shares, 6u32).unwrap())
+        .unwrap();
 
     Ok(ratio.to_uint_floor())
     // Ok(max_ratio.to_decimal256(6u8).mul(position.total_shares.to_decimal256(6u8)).to_uint_floor())
@@ -720,7 +723,7 @@ fn calculate_rebalance_amounts(
     // This is a simplified implementation
     let mut remove_assets = vec![];
     let mut add_assets = vec![];
-    
+
     for (i, target) in target_assets.iter().enumerate() {
         let current = &current_assets[i];
         if target.amount > current.amount {
@@ -735,7 +738,7 @@ fn calculate_rebalance_amounts(
             });
         }
     }
-    
+
     Ok((remove_assets, add_assets))
 }
 
@@ -931,7 +934,7 @@ fn swap_internal(
     //         messages.push(fee.into_msg(fee_address)?);
     //     }
     // }
-    
+
     // Store observation from precommit data
     //accumulate_swap_sizes(deps.storage, &env)?;
 

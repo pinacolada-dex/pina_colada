@@ -1,6 +1,5 @@
 #![cfg(not(tarpaulin_include))]
 
-
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{coins, Addr, Binary, Decimal};
 use cw20::MinterResponse;
@@ -10,14 +9,13 @@ use astroport::asset::{Asset, AssetInfo};
 
 use crate::msg::ExecuteMsg::{self, CreatePair};
 pub struct FactoryHelper {
-    pub owner: Addr,   
-    pub pool_manager:Addr,
+    pub owner: Addr,
+    pub pool_manager: Addr,
     pub cw20_token_code_id: u64,
 }
 
 impl FactoryHelper {
-    pub fn init(router: &mut App, owner: &Addr,pool_manager:&Addr) -> Self {
-        
+    pub fn init(router: &mut App, owner: &Addr, pool_manager: &Addr) -> Self {
         let astro_token_contract = Box::new(ContractWrapper::new_with_empty(
             astroport_token::contract::execute,
             astroport_token::contract::instantiate,
@@ -25,25 +23,24 @@ impl FactoryHelper {
         ));
 
         let cw20_token_code_id = router.store_code(astro_token_contract);
-        Self{
-            pool_manager:pool_manager.clone(),
-            owner:owner.clone(),
-            cw20_token_code_id:cw20_token_code_id
+        Self {
+            pool_manager: pool_manager.clone(),
+            owner: owner.clone(),
+            cw20_token_code_id: cw20_token_code_id,
         }
     }
-   
+
     pub fn create_pair(
         &mut self,
         router: &mut App,
         sender: &Addr,
-       
+
         asset_infos: [AssetInfo; 2],
         init_params: Option<Binary>,
     ) -> AnyResult<Addr> {
         let msg = CreatePair {
-            
             asset_infos: asset_infos.to_vec(),
-            token_code_id:self.cw20_token_code_id,
+            token_code_id: self.cw20_token_code_id,
             init_params,
         };
 
@@ -55,7 +52,7 @@ impl FactoryHelper {
         //         asset_infos: asset_infos.to_vec(),
         //     },
         // )?;
-        
+
         Ok(self.pool_manager.clone())
     }
     pub fn provide_liquidity_with_slip_tolerance(
@@ -65,8 +62,6 @@ impl FactoryHelper {
         assets: &[Asset],
         slippage_tolerance: Option<Decimal>,
     ) -> AnyResult<AppResponse> {
-       
-
         let msg = ExecuteMsg::ProvideLiquidity {
             assets: assets.to_vec(),
             slippage_tolerance,
@@ -74,11 +69,10 @@ impl FactoryHelper {
             receiver: None,
         };
 
-        
         router.execute_contract(sender.clone(), self.pool_manager.clone(), &msg, &[])
     }
 }
-  
+
 pub fn instantiate_token(
     app: &mut App,
     token_code_id: u64,
@@ -145,4 +139,3 @@ pub fn mint_native(
 
     app.send_tokens(denom_admin, receiver.clone(), &coins_vec)
 }
-

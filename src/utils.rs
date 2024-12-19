@@ -1,21 +1,28 @@
-use cosmwasm_std::{Addr, CosmosMsg, StdResult, DepsMut, Deps};
+use crate::error::ContractError;
+use crate::state::{Precisions, PAIR_BALANCES};
 use astroport::asset::{Asset, AssetInfo, DecimalAsset};
 use astroport_pcl_common::state::Config;
-use crate::error::ContractError;
-use crate::state::{PAIR_BALANCES, Precisions};
+use cosmwasm_std::{Addr, CosmosMsg, Deps, DepsMut, StdResult};
 // use std::str;
 use itertools::Itertools;
 
 pub(crate) fn query_pools(
-    deps: &DepsMut,     
+    deps: &DepsMut,
     config: &Config,
     precisions: &Precisions,
 ) -> Result<Vec<DecimalAsset>, ContractError> {
-    let key = generate_key_from_asset_info([config.pair_info.asset_infos[0].clone(),config.pair_info.asset_infos[1].clone()].as_ref());
-    println!("{}",key);
-    let pairs = PAIR_BALANCES.load(deps.storage,key).unwrap();
-    println!("{:?}",pairs);
-    pairs.into_iter()
+    let key = generate_key_from_asset_info(
+        [
+            config.pair_info.asset_infos[0].clone(),
+            config.pair_info.asset_infos[1].clone(),
+        ]
+        .as_ref(),
+    );
+    println!("{}", key);
+    let pairs = PAIR_BALANCES.load(deps.storage, key).unwrap();
+    println!("{:?}", pairs);
+    pairs
+        .into_iter()
         .map(|asset| {
             asset
                 .to_decimal_asset(precisions.get_precision(&asset.info)?)
@@ -25,15 +32,22 @@ pub(crate) fn query_pools(
 }
 
 pub(crate) fn query_pools_sim(
-    deps: Deps,     
+    deps: Deps,
     config: &Config,
     precisions: &Precisions,
 ) -> Result<Vec<DecimalAsset>, ContractError> {
-    let key = generate_key_from_asset_info([config.pair_info.asset_infos[0].clone(),config.pair_info.asset_infos[1].clone()].as_ref());
-    println!("{}",key);
-    let pairs = PAIR_BALANCES.load(deps.storage,key).unwrap();
-    println!("{:?}",pairs);
-    pairs.into_iter()
+    let key = generate_key_from_asset_info(
+        [
+            config.pair_info.asset_infos[0].clone(),
+            config.pair_info.asset_infos[1].clone(),
+        ]
+        .as_ref(),
+    );
+    println!("{}", key);
+    let pairs = PAIR_BALANCES.load(deps.storage, key).unwrap();
+    println!("{:?}", pairs);
+    pairs
+        .into_iter()
         .map(|asset| {
             asset
                 .to_decimal_asset(precisions.get_precision(&asset.info)?)
@@ -45,7 +59,7 @@ pub(crate) fn query_pools_sim(
 pub fn get_transfer_messages(assets: &[Asset], recipient: &Addr) -> StdResult<Vec<CosmosMsg>> {
     assets
         .iter()
-        .map(|asset| asset.clone().into_msg(recipient))  // Added clone()
+        .map(|asset| asset.clone().into_msg(recipient)) // Added clone()
         .collect()
 }
 
@@ -57,7 +71,10 @@ pub fn get_rebalance_messages(
 ) -> StdResult<Vec<CosmosMsg>> {
     let mut messages = vec![];
     messages.extend(get_transfer_messages(remove_assets, recipient)?);
-    messages.extend(get_transfer_messages(add_assets, &config.pair_info.contract_addr)?);
+    messages.extend(get_transfer_messages(
+        add_assets,
+        &config.pair_info.contract_addr,
+    )?);
     Ok(messages)
 }
 
@@ -74,7 +91,7 @@ pub fn update_pool_balances(
 }
 
 pub fn generate_key_from_asset_info(assets: &[AssetInfo]) -> String {
-    std::str::from_utf8(&pair_key(&[assets[0].clone(), assets[1].clone()]))  // Added std::
+    std::str::from_utf8(&pair_key(&[assets[0].clone(), assets[1].clone()])) // Added std::
         .unwrap()
         .to_string()
 }

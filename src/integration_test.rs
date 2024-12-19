@@ -7,15 +7,15 @@ use std::str::FromStr;
 use crate::factory_helper::{instantiate_token, mint, mint_native, FactoryHelper};
 use crate::msg::Cw20HookMsg;
 use crate::msg::ExecuteMsg;
+use crate::msg::PositionModification; // Add this import
+use crate::msg::QueryMsg;
 use crate::msg::SwapOperation;
-use crate::msg::PositionModification;  // Add this import
 use astroport::asset::{
     native_asset, native_asset_info, token_asset, token_asset_info, Asset, AssetInfo, PairInfo,
 };
 use astroport::factory::PairType;
 use astroport::pair::PoolResponse;
 use astroport::pair_concentrated::ConcentratedPoolParams;
-use crate::msg::QueryMsg;
 use astroport::router::InstantiateMsg;
 
 use cosmwasm_std::{to_json_binary, Addr, Coin, Decimal, Empty, Uint128};
@@ -185,12 +185,23 @@ fn pool_manager_works() {
         })
         .unwrap(),
     };
-    let pool_key=format!("{}{}",token_x,token_y);
-    println!("{} {}","querying pool at ",pool_key);
-    let pool_data:PoolResponse=app.wrap().query_wasm_smart(pool_manager.clone(), &QueryMsg::Pool {pool_key:pool_key.clone()}).unwrap();
-    println!("{:?}",pool_data);
-    let pair_data:PairInfo=app.wrap().query_wasm_smart(pool_manager.clone(), &QueryMsg::Pair {pool_key}).unwrap();
-    println!("{:?}",pair_data);
+    let pool_key = format!("{}{}", token_x, token_y);
+    println!("{} {}", "querying pool at ", pool_key);
+    let pool_data: PoolResponse = app
+        .wrap()
+        .query_wasm_smart(
+            pool_manager.clone(),
+            &QueryMsg::Pool {
+                pool_key: pool_key.clone(),
+            },
+        )
+        .unwrap();
+    println!("{:?}", pool_data);
+    let pair_data: PairInfo = app
+        .wrap()
+        .query_wasm_smart(pool_manager.clone(), &QueryMsg::Pair { pool_key })
+        .unwrap();
+    println!("{:?}", pair_data);
     let withdraw_liq_msg = Cw20HookMsg::WithdrawLiquidity {
         assets: [
             Asset {
@@ -500,7 +511,10 @@ fn test_modify_position() {
         .create_pair(
             &mut app,
             &owner,
-            [token_asset_info(token_x.clone()), token_asset_info(token_y.clone())],
+            [
+                token_asset_info(token_x.clone()),
+                token_asset_info(token_y.clone()),
+            ],
             Some(to_json_binary(&params).unwrap()),
         )
         .unwrap();
@@ -517,14 +531,17 @@ fn test_modify_position() {
         amount: (100 * n).into(),
     };
 
-    app.execute_contract(owner.clone(), token_x.clone(), &msg, &[]).unwrap();
-    app.execute_contract(owner.clone(), token_y.clone(), &msg, &[]).unwrap();
+    app.execute_contract(owner.clone(), token_x.clone(), &msg, &[])
+        .unwrap();
+    app.execute_contract(owner.clone(), token_y.clone(), &msg, &[])
+        .unwrap();
 
     // Provide initial liquidity
     let assets = [
         token_asset(token_x.clone(), n.into()),
         token_asset(token_y.clone(), n.into()),
-    ].to_vec();
+    ]
+    .to_vec();
 
     let provide_msg = ExecuteMsg::ProvideLiquidity {
         assets,
@@ -540,7 +557,12 @@ fn test_modify_position() {
     let pool_key = format!("{}{}", token_x, token_y);
     let initial_pool: PoolResponse = app
         .wrap()
-        .query_wasm_smart(pool_manager.clone(), &QueryMsg::Pool { pool_key: pool_key.clone() })
+        .query_wasm_smart(
+            pool_manager.clone(),
+            &QueryMsg::Pool {
+                pool_key: pool_key.clone(),
+            },
+        )
         .unwrap();
 
     println!("Initial pool state: {:?}", initial_pool);
@@ -594,7 +616,7 @@ fn test_modify_position() {
         .unwrap();
 
     println!("Final pool state: {:?}", final_pool);
-    
+
     // Add assertions to verify the pool state is as expected after modifications
     assert!(final_pool.assets[0].amount > Uint128::zero());
     assert!(final_pool.assets[1].amount > Uint128::zero());
