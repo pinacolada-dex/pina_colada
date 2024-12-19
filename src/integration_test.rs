@@ -48,6 +48,7 @@ where
     T::from_str(&val.to_string()).unwrap()
 }
 
+#[allow(dead_code)]
 pub fn dec_to_f64(val: impl Display) -> f64 {
     f64::from_str(&val.to_string()).unwrap()
 }
@@ -479,7 +480,7 @@ fn test_token_to_native_swap() {
 fn test_modify_position() {
     let mut app = App::default();
     let owner = Addr::unchecked("owner");
-    let user = Addr::unchecked("user");
+    let _user = Addr::unchecked("user");
 
     let router_code = app.store_code(router_contract());
     let pool_manager = app

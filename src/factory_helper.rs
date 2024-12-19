@@ -55,6 +55,8 @@ impl FactoryHelper {
 
         Ok(self.pool_manager.clone())
     }
+
+    #[allow(dead_code)]
     pub fn provide_liquidity_with_slip_tolerance(
         &mut self,
         router: &mut App,
