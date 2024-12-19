@@ -3,7 +3,7 @@ use astroport::asset::{Asset, AssetInfo, DecimalAsset};
 use astroport_pcl_common::state::Config;
 use crate::error::ContractError;
 use crate::state::{PAIR_BALANCES, Precisions};
-use std::str;
+// use std::str;
 use itertools::Itertools;
 
 pub(crate) fn query_pools(

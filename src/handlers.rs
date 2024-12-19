@@ -1,14 +1,13 @@
 use astroport::asset::{
-    addr_opt_validate, format_lp_token_name, Asset, AssetInfo, CoinsExt, Decimal256Ext, PairInfo,
+    addr_opt_validate, format_lp_token_name, Asset, AssetInfo, CoinsExt, PairInfo,
     MINIMUM_LIQUIDITY_AMOUNT,
 };
-use astroport::cosmwasm_ext::{AbsDiff as _, DecimalToInteger, IntegerToDecimal};
 use astroport::factory::PairType;
 use astroport::observation::PrecommitObservation;
 use astroport::pair::MIN_TRADE_SIZE;
 use astroport::querier::query_supply;
 use astroport::token::InstantiateMsg as TokenInstantiateMsg;
-use astroport::cosmwasm_ext::{AbsDiff, DecimalToInteger, IntegerToDecimal, DecimalExt};
+use astroport::cosmwasm_ext::{AbsDiff, DecimalToInteger, IntegerToDecimal};
 
 use astroport::pair_concentrated::{ConcentratedPoolParams, UpdatePoolParams};
 
@@ -22,8 +21,11 @@ use astroport_pcl_common::utils::{
 };
 use astroport_pcl_common::{calc_d, get_xcp};
 
+use astroport::asset::Decimal256Ext;
+
 use std::str;
 
+use crate::utils::query_pools;
 use crate::error::ContractError;
 use crate::msg::SwapOperation;
 use crate::state::{
@@ -31,7 +33,7 @@ use crate::state::{
     increment_pair_balances, pair_key, BALANCES, PAIR_BALANCES, POOLS, QUEUED_MINT,Precisions
 };
 use crate::msg::PositionModification;
-use crate::state::{Position, POSITIONS};
+use crate::state::{Position};
 use cosmwasm_std::{
     attr, from_json, to_json_binary, wasm_execute, wasm_instantiate, Addr, Api, BankMsg, Binary, Coin,
     CosmosMsg, Decimal, Decimal256, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
@@ -575,15 +577,15 @@ pub fn execute_create_pair(
 }
 pub fn execute_modify_position(
     deps: &mut DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     assets: Vec<Asset>,
     position_id: String,
     modification_type: PositionModification,
-    slippage_tolerance: Option<Decimal>,
+    _slippage_tolerance: Option<Decimal>,
 ) -> Result<Response, ContractError> {
     let pool_key = generate_key_from_assets(&assets);
-    let mut config = POOLS.load(deps.storage, pool_key.clone())?;
+    let config = POOLS.load(deps.storage, pool_key.clone())?;
     let mut pair_balances = PAIR_BALANCES.load(deps.storage, pool_key.clone())?;
     
     match modification_type {
@@ -613,9 +615,9 @@ pub fn execute_modify_position(
             PAIR_BALANCES.save(deps.storage, pool_key, &pair_balances)?;
             
             // Send assets back to user
-            let messages: Vec<CosmosMsg> = assets
+            let _messages: Vec<CosmosMsg> = assets
                 .iter()
-                .map(|asset| asset.into_msg(&info.sender))
+                .map(|asset| asset.clone().into_msg(&info.sender))
                 .collect::<StdResult<_>>()?;
         },
         PositionModification::Rebalance => {
@@ -650,6 +652,7 @@ pub fn execute_modify_position(
 
 // Helper functions
 
+#[allow(dead_code)]
 fn calculate_deposits(
     assets: &[Asset],
     precisions: &Precisions,
@@ -663,11 +666,12 @@ fn calculate_deposits(
         .collect()
 }
 
+#[allow(dead_code)]
 fn calculate_shares_from_deposits(
     deposits: &[Decimal256],
-    config: &Config,
-    env: &Env,
-    existing_shares: Uint128,
+    _config: &Config,
+    _env: &Env,
+    _existing_shares: Uint128,
     slippage_tolerance: Option<Decimal>,
 ) -> Result<Uint128, ContractError> {
     // Implement share calculation logic based on your AMM model
@@ -677,13 +681,15 @@ fn calculate_shares_from_deposits(
         .to_uint(LP_TOKEN_PRECISION)?;
     
     // Check slippage if specified
-    if let Some(max_slippage) = slippage_tolerance {
+    if let Some(_max_slippage) = slippage_tolerance {
         // Implement slippage check
+        // XXX: TODO
     }
     
     Ok(new_shares)
 }
 
+#[allow(dead_code)]
 fn calculate_withdrawal_shares(
     assets: &[Asset],
     position: &Position,
@@ -697,14 +703,18 @@ fn calculate_withdrawal_shares(
         }
     }
     
-    Ok(max_ratio.to_decimal256(6u8).mul(position.total_shares.to_decimal256(6u8)).to_uint_floor())
+    let ratio: Decimal = max_ratio.checked_mul(Decimal::from_atomics(position.total_shares, 6u32).unwrap()).unwrap();
+
+    Ok(ratio.to_uint_floor())
+    // Ok(max_ratio.to_decimal256(6u8).mul(position.total_shares.to_decimal256(6u8)).to_uint_floor())
 }
 
+#[allow(dead_code)]
 fn calculate_rebalance_amounts(
     current_assets: &[Asset],
     target_assets: &[Asset],
-    config: &Config,
-    slippage_tolerance: Option<Decimal>,
+    _config: &Config,
+    _slippage_tolerance: Option<Decimal>,
 ) -> Result<(Vec<Asset>, Vec<Asset>), ContractError> {
     // Calculate which assets need to be swapped to achieve target ratios
     // This is a simplified implementation
