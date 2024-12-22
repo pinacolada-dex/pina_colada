@@ -571,8 +571,8 @@ fn test_modify_position() {
     // Test increasing position
     let increase_msg = ExecuteMsg::ModifyPosition {
         assets: vec![
-            token_asset(token_x.clone(), (n * 2).into()),
-            token_asset(token_y.clone(), (n * 2).into()),
+            token_asset(token_x.clone(), n.into()),
+            token_asset(token_y.clone(), n.into()),
         ],
         position_id: "1".to_string(),
         modification_type: PositionModification::Increase,
@@ -585,8 +585,8 @@ fn test_modify_position() {
     // Test decreasing position
     let decrease_msg = ExecuteMsg::ModifyPosition {
         assets: vec![
-            token_asset(token_x.clone(), n.into()),
-            token_asset(token_y.clone(), n.into()),
+            token_asset(token_x.clone(), (n / 2).into()),
+            token_asset(token_y.clone(), (n / 2).into()),
         ],
         position_id: "1".to_string(),
         modification_type: PositionModification::Decrease,
@@ -596,16 +596,35 @@ fn test_modify_position() {
     app.execute_contract(owner.clone(), pool_manager.clone(), &decrease_msg, &[])
         .unwrap();
 
-    // Test rebalancing position
-    let rebalance_msg = ExecuteMsg::ModifyPosition {
-        assets: vec![
-            token_asset(token_x.clone(), (n * 2).into()),
-            token_asset(token_y.clone(), n.into()),
-        ],
-        position_id: "1".to_string(),
-        modification_type: PositionModification::Rebalance,
-        slippage_tolerance: Some(f64_to_dec(0.5)),
-    };
+    // Get current pool state for rebalance
+    let current_pool: PoolResponse = app
+        .wrap()
+        .query_wasm_smart(
+            pool_manager.clone(),
+            &QueryMsg::Pool {
+                pool_key: pool_key.clone(),
+            },
+        )
+        .unwrap();
+
+    // Calculate total value for rebalance
+let total_value = current_pool.assets[0].amount + current_pool.assets[1].amount;
+
+// Calculate new amounts while maintaining total value
+let total_value_u128 = total_value.u128();
+let new_amount_x = Uint128::new(total_value_u128 * 2 / 3);
+let new_amount_y = Uint128::new(total_value_u128 * 1 / 3);
+
+// Test rebalancing position while maintaining total value
+let rebalance_msg = ExecuteMsg::ModifyPosition {
+    assets: vec![
+        token_asset(token_x.clone(), new_amount_x),
+        token_asset(token_y.clone(), new_amount_y),
+    ],
+    position_id: "1".to_string(),
+    modification_type: PositionModification::Rebalance,
+    slippage_tolerance: Some(f64_to_dec(0.5)),
+};
 
     app.execute_contract(owner.clone(), pool_manager.clone(), &rebalance_msg, &[])
         .unwrap();
@@ -618,7 +637,19 @@ fn test_modify_position() {
 
     println!("Final pool state: {:?}", final_pool);
 
-    // Add assertions to verify the pool state is as expected after modifications
+    // Add assertions to verify the pool state
     assert!(final_pool.assets[0].amount > Uint128::zero());
     assert!(final_pool.assets[1].amount > Uint128::zero());
+    assert_eq!(
+        final_pool.assets[0].amount + final_pool.assets[1].amount,
+        total_value,
+        "Total value should remain constant after rebalance"
+    );
+    
+    // Verify the new ratio is approximately 2:1
+    let ratio = final_pool.assets[0].amount.u128() as f64 / final_pool.assets[1].amount.u128() as f64;
+    assert!(
+        (ratio - 2.0).abs() < 0.1,
+        "Asset ratio should be approximately 2:1 after rebalance"
+    );
 }
