@@ -1,12 +1,12 @@
 use std::env::current_dir;
 use std::fs::create_dir_all;
 
+use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
+use astroport::router::{InstantiateMsg, MigrateMsg};
 use astrpt::msg::{ExecuteMsg, QueryMsg};
-use astroport::router::{InstantiateMsg, MigrateMsg,};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Schema {

@@ -1,6 +1,6 @@
-use astroport_pcl_common::consts::MIN_AMP_CHANGING_TIME;
-use cosmwasm_std::{Decimal,ConversionOverflowError, OverflowError, StdError, Uint128};
 use astroport::{asset::MINIMUM_LIQUIDITY_AMOUNT, pair::MAX_FEE_SHARE_BPS};
+use astroport_pcl_common::consts::MIN_AMP_CHANGING_TIME;
+use cosmwasm_std::{ConversionOverflowError, Decimal, OverflowError, StdError, Uint128};
 
 use astroport_pcl_common::error::PclError;
 use thiserror::Error;
@@ -14,7 +14,7 @@ pub enum ContractError {
 
     #[error("{0} parameter must be greater than {1} and less than or equal to {2}")]
     IncorrectPoolParam(String, String, String),
-    
+
     #[error("{0}")]
     OverflowError(#[from] OverflowError),
     #[error("{0}")]
@@ -24,7 +24,7 @@ pub enum ContractError {
     InvalidRebalance {},
 
     #[error("Unauthorized")]
-    Unauthorized{},
+    Unauthorized {},
     #[error("Contract can't be migrated!")]
     MigrationError {},
     #[error("You need to provide init params")]
@@ -92,9 +92,9 @@ pub enum ContractError {
     #[error("Native swap operations are not supported!")]
     NativeSwapNotSupported {},
     #[error("")]
-    InvalidZeroAmount{},
+    InvalidZeroAmount {},
     #[error("Invalid number of assets. This pair supports only {0} assets")]
     InvalidNumberOfAssets(usize),
     #[error("Failed to Parse Reply")]
-    FailedToParseReply{},
+    FailedToParseReply {},
 }

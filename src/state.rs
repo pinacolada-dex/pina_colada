@@ -1,13 +1,13 @@
 use astroport::asset::{Asset, AssetInfo};
+use cosmwasm_std::Addr;
 use cosmwasm_std::{CustomQuery, Order, StdResult, Storage, Uint128};
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use cw_storage_plus::{Item, Map, SnapshotMap};
 use itertools::Itertools;
-use cosmwasm_std::Addr;
 
 use astroport_pcl_common::{error::PclError, state::Config};
-use cosmwasm_std::DepsMut;
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::DepsMut;
 
 /// Stores pool parameters and state.
 
@@ -27,24 +27,21 @@ impl<'a> Precisions {
     /// Store all token precisions
     pub fn store_precisions<C: CustomQuery>(
         deps: DepsMut<C>,
-        asset_infos: &[AssetInfo],       
+        asset_infos: &[AssetInfo],
     ) -> StdResult<()> {
         for asset_info in asset_infos {
-            let decimals= match asset_info {
-                AssetInfo::NativeToken { denom: _ } => {
-                    18u8
-                    
-                }
+            let decimals = match asset_info {
+                AssetInfo::NativeToken { denom: _ } => 18u8,
                 AssetInfo::Token { contract_addr } => {
-                    let res: TokenInfoResponse =
-                        deps.querier.query_wasm_smart(contract_addr, &Cw20QueryMsg::TokenInfo {})?;
-        
+                    let res: TokenInfoResponse = deps
+                        .querier
+                        .query_wasm_smart(contract_addr, &Cw20QueryMsg::TokenInfo {})?;
+
                     res.decimals
                 }
             };
-           
-       
-            Self::PRECISIONS.save(deps.storage, asset_info.to_string(),  &decimals)?;
+
+            Self::PRECISIONS.save(deps.storage, asset_info.to_string(), &decimals)?;
         }
 
         Ok(())

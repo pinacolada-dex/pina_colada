@@ -7,15 +7,15 @@ use std::str::FromStr;
 use crate::factory_helper::{instantiate_token, mint, mint_native, FactoryHelper};
 use crate::msg::Cw20HookMsg;
 use crate::msg::ExecuteMsg;
+use crate::msg::PositionModification; // Add this import
+use crate::msg::QueryMsg;
 use crate::msg::SwapOperation;
-use crate::msg::PositionModification;  // Add this import
 use astroport::asset::{
     native_asset, native_asset_info, token_asset, token_asset_info, Asset, AssetInfo, PairInfo,
 };
 use astroport::factory::PairType;
 use astroport::pair::PoolResponse;
 use astroport::pair_concentrated::ConcentratedPoolParams;
-use crate::msg::QueryMsg;
 use astroport::router::InstantiateMsg;
 
 use cosmwasm_std::{to_json_binary, Addr, Coin, Decimal, Empty, Uint128};
@@ -48,6 +48,7 @@ where
     T::from_str(&val.to_string()).unwrap()
 }
 
+#[allow(dead_code)]
 pub fn dec_to_f64(val: impl Display) -> f64 {
     f64::from_str(&val.to_string()).unwrap()
 }
@@ -185,12 +186,23 @@ fn pool_manager_works() {
         })
         .unwrap(),
     };
-    let pool_key=format!("{}{}",token_x,token_y);
-    println!("{} {}","querying pool at ",pool_key);
-    let pool_data:PoolResponse=app.wrap().query_wasm_smart(pool_manager.clone(), &QueryMsg::Pool {pool_key:pool_key.clone()}).unwrap();
-    println!("{:?}",pool_data);
-    let pair_data:PairInfo=app.wrap().query_wasm_smart(pool_manager.clone(), &QueryMsg::Pair {pool_key}).unwrap();
-    println!("{:?}",pair_data);
+    let pool_key = format!("{}{}", token_x, token_y);
+    println!("{} {}", "querying pool at ", pool_key);
+    let pool_data: PoolResponse = app
+        .wrap()
+        .query_wasm_smart(
+            pool_manager.clone(),
+            &QueryMsg::Pool {
+                pool_key: pool_key.clone(),
+            },
+        )
+        .unwrap();
+    println!("{:?}", pool_data);
+    let pair_data: PairInfo = app
+        .wrap()
+        .query_wasm_smart(pool_manager.clone(), &QueryMsg::Pair { pool_key })
+        .unwrap();
+    println!("{:?}", pair_data);
     let withdraw_liq_msg = Cw20HookMsg::WithdrawLiquidity {
         assets: [
             Asset {
@@ -468,7 +480,7 @@ fn test_token_to_native_swap() {
 fn test_modify_position() {
     let mut app = App::default();
     let owner = Addr::unchecked("owner");
-    let user = Addr::unchecked("user");
+    let _user = Addr::unchecked("user");
 
     let router_code = app.store_code(router_contract());
     let pool_manager = app
@@ -500,7 +512,10 @@ fn test_modify_position() {
         .create_pair(
             &mut app,
             &owner,
-            [token_asset_info(token_x.clone()), token_asset_info(token_y.clone())],
+            [
+                token_asset_info(token_x.clone()),
+                token_asset_info(token_y.clone()),
+            ],
             Some(to_json_binary(&params).unwrap()),
         )
         .unwrap();
@@ -517,14 +532,17 @@ fn test_modify_position() {
         amount: (100 * n).into(),
     };
 
-    app.execute_contract(owner.clone(), token_x.clone(), &msg, &[]).unwrap();
-    app.execute_contract(owner.clone(), token_y.clone(), &msg, &[]).unwrap();
+    app.execute_contract(owner.clone(), token_x.clone(), &msg, &[])
+        .unwrap();
+    app.execute_contract(owner.clone(), token_y.clone(), &msg, &[])
+        .unwrap();
 
     // Provide initial liquidity
     let assets = [
         token_asset(token_x.clone(), n.into()),
         token_asset(token_y.clone(), n.into()),
-    ].to_vec();
+    ]
+    .to_vec();
 
     let provide_msg = ExecuteMsg::ProvideLiquidity {
         assets,
@@ -540,7 +558,12 @@ fn test_modify_position() {
     let pool_key = format!("{}{}", token_x, token_y);
     let initial_pool: PoolResponse = app
         .wrap()
-        .query_wasm_smart(pool_manager.clone(), &QueryMsg::Pool { pool_key: pool_key.clone() })
+        .query_wasm_smart(
+            pool_manager.clone(),
+            &QueryMsg::Pool {
+                pool_key: pool_key.clone(),
+            },
+        )
         .unwrap();
 
     println!("Initial pool state: {:?}", initial_pool);
@@ -548,8 +571,8 @@ fn test_modify_position() {
     // Test increasing position
     let increase_msg = ExecuteMsg::ModifyPosition {
         assets: vec![
-            token_asset(token_x.clone(), (n * 2).into()),
-            token_asset(token_y.clone(), (n * 2).into()),
+            token_asset(token_x.clone(), n.into()),
+            token_asset(token_y.clone(), n.into()),
         ],
         position_id: "1".to_string(),
         modification_type: PositionModification::Increase,
@@ -562,8 +585,8 @@ fn test_modify_position() {
     // Test decreasing position
     let decrease_msg = ExecuteMsg::ModifyPosition {
         assets: vec![
-            token_asset(token_x.clone(), n.into()),
-            token_asset(token_y.clone(), n.into()),
+            token_asset(token_x.clone(), (n / 2).into()),
+            token_asset(token_y.clone(), (n / 2).into()),
         ],
         position_id: "1".to_string(),
         modification_type: PositionModification::Decrease,
@@ -573,11 +596,30 @@ fn test_modify_position() {
     app.execute_contract(owner.clone(), pool_manager.clone(), &decrease_msg, &[])
         .unwrap();
 
-    // Test rebalancing position
+    // Get current pool state for rebalance
+    let current_pool: PoolResponse = app
+        .wrap()
+        .query_wasm_smart(
+            pool_manager.clone(),
+            &QueryMsg::Pool {
+                pool_key: pool_key.clone(),
+            },
+        )
+        .unwrap();
+
+    // Calculate total value for rebalance
+    let total_value = current_pool.assets[0].amount + current_pool.assets[1].amount;
+
+    // Calculate new amounts while maintaining total value
+    let total_value_u128 = total_value.u128();
+    let new_amount_x = Uint128::new(total_value_u128 * 2 / 3);
+    let new_amount_y = Uint128::new(total_value_u128 * 1 / 3);
+
+    // Test rebalancing position while maintaining total value
     let rebalance_msg = ExecuteMsg::ModifyPosition {
         assets: vec![
-            token_asset(token_x.clone(), (n * 2).into()),
-            token_asset(token_y.clone(), n.into()),
+            token_asset(token_x.clone(), new_amount_x),
+            token_asset(token_y.clone(), new_amount_y),
         ],
         position_id: "1".to_string(),
         modification_type: PositionModification::Rebalance,
@@ -594,8 +636,21 @@ fn test_modify_position() {
         .unwrap();
 
     println!("Final pool state: {:?}", final_pool);
-    
-    // Add assertions to verify the pool state is as expected after modifications
+
+    // Add assertions to verify the pool state
     assert!(final_pool.assets[0].amount > Uint128::zero());
     assert!(final_pool.assets[1].amount > Uint128::zero());
+    assert_eq!(
+        final_pool.assets[0].amount + final_pool.assets[1].amount,
+        total_value,
+        "Total value should remain constant after rebalance"
+    );
+
+    // Verify the new ratio is approximately 2:1
+    let ratio =
+        final_pool.assets[0].amount.u128() as f64 / final_pool.assets[1].amount.u128() as f64;
+    assert!(
+        (ratio - 2.0).abs() < 0.1,
+        "Asset ratio should be approximately 2:1 after rebalance"
+    );
 }

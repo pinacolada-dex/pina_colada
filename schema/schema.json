@@ -291,6 +291,56 @@
             }
           },
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "modify_position"
+          ],
+          "properties": {
+            "modify_position": {
+              "type": "object",
+              "required": [
+                "assets",
+                "modification_type",
+                "position_id"
+              ],
+              "properties": {
+                "assets": {
+                  "description": "The assets to modify",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Asset"
+                  }
+                },
+                "modification_type": {
+                  "description": "The type of modification",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/PositionModification"
+                    }
+                  ]
+                },
+                "position_id": {
+                  "description": "The position ID to modify",
+                  "type": "string"
+                },
+                "slippage_tolerance": {
+                  "description": "Optional slippage tolerance",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/Decimal"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
       ]
     },
@@ -312,6 +362,31 @@
       "description": "This structure describes a migration message. We currently take no arguments for migrations.",
       "type": "object",
       "additionalProperties": false
+    },
+    "PositionModification": {
+      "oneOf": [
+        {
+          "description": "Increase position size",
+          "type": "string",
+          "enum": [
+            "increase"
+          ]
+        },
+        {
+          "description": "Decrease position size",
+          "type": "string",
+          "enum": [
+            "decrease"
+          ]
+        },
+        {
+          "description": "Rebalance position (change asset ratios)",
+          "type": "string",
+          "enum": [
+            "rebalance"
+          ]
+        }
+      ]
     },
     "QueryMsg": {
       "oneOf": [

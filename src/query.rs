@@ -1,43 +1,45 @@
 use std::convert::TryFrom;
 
+use crate::error::ContractError;
+use crate::handlers::{generate_key_from_asset_info, LP_TOKEN_PRECISION};
+use crate::msg::SwapOperation;
+use crate::state::Precisions;
+use crate::state::POOLS;
+use crate::utils::query_pools_sim;
 use astroport::asset::Asset;
 use astroport::cosmwasm_ext::{DecimalToInteger, IntegerToDecimal};
 use astroport::pair::ConfigResponse;
 use astroport::pair::SimulationResponse;
+use astroport::pair_concentrated::ConcentratedPoolConfig;
 use astroport::querier::query_supply;
-use astroport::router::{SimulateSwapOperationsResponse};
-use astroport_pcl_common::{calc_d, get_xcp};
-use astroport_pcl_common::utils::compute_swap;
-use crate::state::Precisions;
+use astroport::router::SimulateSwapOperationsResponse;
 use astroport_pcl_common::utils::before_swap_check;
+use astroport_pcl_common::utils::compute_swap;
+use astroport_pcl_common::{calc_d, get_xcp};
 use cosmwasm_std::{to_json_binary, Addr, Decimal, Decimal256, Deps, Env, StdError, Uint128};
 use itertools::Itertools;
-use astroport::pair_concentrated::ConcentratedPoolConfig;
-use crate::error::ContractError;
-use crate::handlers::{generate_key_from_asset_info, LP_TOKEN_PRECISION};
-use crate::msg::SwapOperation;
-use crate::state::{ POOLS};
-use crate::utils::{query_pools_sim};
 pub fn simulate_swap_operations(
     deps: Deps,
-    env:Env,
+    env: Env,
     offer_amount: Uint128,
     operations: Vec<SwapOperation>,
 ) -> Result<SimulateSwapOperationsResponse, ContractError> {
     //assert_operations(deps.api, &operations)?;
 
-
     let mut return_amount = offer_amount;
 
     for operation in operations.into_iter() {
-        let (offer_asset_info,ask_asset_info)= (operation.offer_asset_info,operation.ask_asset_info);
-        let pool_key=generate_key_from_asset_info([offer_asset_info.clone(),ask_asset_info.clone()].as_ref());
-        let offer_asset=  Asset {
+        let (offer_asset_info, ask_asset_info) =
+            (operation.offer_asset_info, operation.ask_asset_info);
+        let pool_key = generate_key_from_asset_info(
+            [offer_asset_info.clone(), ask_asset_info.clone()].as_ref(),
+        );
+        let offer_asset = Asset {
             info: offer_asset_info.clone(),
-            amount:return_amount,
+            amount: return_amount,
         };
-        let subresult=query_simulation(deps,env.clone(),offer_asset,pool_key).unwrap();
-        return_amount=subresult.return_amount;
+        let subresult = query_simulation(deps, env.clone(), offer_asset, pool_key).unwrap();
+        return_amount = subresult.return_amount;
     }
 
     Ok(SimulateSwapOperationsResponse {
@@ -49,9 +51,9 @@ pub fn query_simulation(
     deps: Deps,
     env: Env,
     offer_asset: Asset,
-    pool_key:String
+    pool_key: String,
 ) -> Result<SimulationResponse, ContractError> {
-    let config = POOLS.load(deps.storage,pool_key.clone())?;
+    let config = POOLS.load(deps.storage, pool_key.clone())?;
     let precisions = Precisions::new(deps.storage)?;
     let offer_asset_prec = precisions.get_precision(&offer_asset.info)?;
     let offer_asset_dec = offer_asset.to_decimal_asset(offer_asset_prec)?;
@@ -69,12 +71,11 @@ pub fn query_simulation(
 
     let xs = pools.iter().map(|asset| asset.amount).collect_vec();
 
-   
     let maker_fee_share = Decimal256::zero();
-    
+
     // If this pool is configured to share fees
     let share_fee_share = Decimal256::zero();
-   
+
     let swap_result = compute_swap(
         &xs,
         offer_asset_dec.amount,
@@ -92,8 +93,8 @@ pub fn query_simulation(
     })
 }
 /// Compute the current LP token virtual price.
-pub fn query_lp_price(deps: Deps, env: Env, pool_key:String) -> Result<Decimal256,ContractError> {
-    let config = POOLS.load(deps.storage,pool_key.clone())?;
+pub fn query_lp_price(deps: Deps, env: Env, pool_key: String) -> Result<Decimal256, ContractError> {
+    let config = POOLS.load(deps.storage, pool_key.clone())?;
     let total_lp = query_supply(&deps.querier, &config.pair_info.liquidity_token)?
         .to_decimal256(LP_TOKEN_PRECISION)?;
     if !total_lp.is_zero() {
@@ -115,8 +116,12 @@ pub fn query_lp_price(deps: Deps, env: Env, pool_key:String) -> Result<Decimal25
 }
 
 /// Returns the pair contract configuration.
-pub fn query_config(deps: Deps, env: Env,pool_key:String) -> Result<ConfigResponse,ContractError> {
-    let config = POOLS.load(deps.storage,pool_key)?;
+pub fn query_config(
+    deps: Deps,
+    env: Env,
+    pool_key: String,
+) -> Result<ConfigResponse, ContractError> {
+    let config = POOLS.load(deps.storage, pool_key)?;
     let amp_gamma = config.pool_state.get_amp_gamma(&env);
     let dec256_price_scale = config.pool_state.price_state.price_scale;
     let price_scale = Decimal::from_atomics(
@@ -125,7 +130,6 @@ pub fn query_config(deps: Deps, env: Env,pool_key:String) -> Result<ConfigRespon
     )
     .map_err(|e| StdError::generic_err(format!("{e}")))?;
 
-   
     Ok(ConfigResponse {
         block_time_last: 0, // keeping this field for backwards compatibility
         params: Some(to_json_binary(&ConcentratedPoolConfig {
@@ -147,18 +151,22 @@ pub fn query_config(deps: Deps, env: Env,pool_key:String) -> Result<ConfigRespon
 }
 
 /// Compute the current pool D value.
-pub fn query_compute_d(deps: Deps, env: Env,pool_key:String) -> Result<Decimal256,ContractError> {
-    let config = POOLS.load(deps.storage,pool_key)?;
+pub fn query_compute_d(
+    deps: Deps,
+    env: Env,
+    pool_key: String,
+) -> Result<Decimal256, ContractError> {
+    let config = POOLS.load(deps.storage, pool_key)?;
     let precisions = Precisions::new(deps.storage)?;
 
-    let mut xs= query_pools_sim(deps, &config, &precisions)
+    let mut xs = query_pools_sim(deps, &config, &precisions)
         .map_err(|e| StdError::generic_err(e.to_string()))?
         .into_iter()
         .map(|a| a.amount)
         .collect_vec();
 
     if xs[0].is_zero() || xs[1].is_zero() {
-        return Err(ContractError::InvalidZeroAmount{});
+        return Err(ContractError::InvalidZeroAmount {});
     }
 
     xs[1] *= config.pool_state.price_state.price_scale;
