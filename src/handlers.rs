@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use astroport::asset::{
     addr_opt_validate, format_lp_token_name, Asset, AssetInfo, CoinsExt, PairInfo,
     MINIMUM_LIQUIDITY_AMOUNT,
@@ -726,16 +728,16 @@ fn calculate_rebalance_amounts(
 
     for (i, target) in target_assets.iter().enumerate() {
         let current = &current_assets[i];
-        if target.amount > current.amount {
-            add_assets.push(Asset {
+        match target.amount.cmp(&current.amount) {
+            Ordering::Greater => add_assets.push(Asset {
                 info: target.info.clone(),
                 amount: target.amount - current.amount,
-            });
-        } else if target.amount < current.amount {
-            remove_assets.push(Asset {
+            }),
+            Ordering::Less => remove_assets.push(Asset {
                 info: target.info.clone(),
                 amount: current.amount - target.amount,
-            });
+            }),
+            Ordering::Equal => ()
         }
     }
 
