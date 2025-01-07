@@ -737,7 +737,7 @@ fn calculate_rebalance_amounts(
                 info: target.info.clone(),
                 amount: current.amount - target.amount,
             }),
-            Ordering::Equal => ()
+            Ordering::Equal => (),
         }
     }
 
